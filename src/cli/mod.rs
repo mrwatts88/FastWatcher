@@ -12,6 +12,6 @@ pub enum Commands {
     /// Search for text in the archive
     Search { query: String },
 
-    /// Reindex files into the SQLite cache
-    Index,
+    /// Initialize the database and seed initial data
+    InitDb,
 }
