@@ -116,3 +116,170 @@ pub fn delete_sighting(conn: &Connection, id: i64) -> Result<usize> {
         .context("Failed to delete sighting")?;
     Ok(rows_affected)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::taxon::create_taxon;
+    use crate::core::trip::create_trip;
+
+    fn setup_test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+
+        let schema = std::fs::read_to_string("init.sql").unwrap();
+        conn.execute_batch(&schema).unwrap();
+
+        conn
+    }
+
+    #[test]
+    fn test_create_sighting_with_species_and_trip() {
+        let conn = setup_test_db();
+
+        // Create taxon and trip first
+        let taxon_id = create_taxon(
+            &conn,
+            "species",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Turdidae"),
+            Some("Turdus"),
+            Some("migratorius"),
+            "American Robin",
+        ).unwrap();
+
+        let trip_id = create_trip(&conn, "Morning Walk", Some("2025-01-15"), Some("Park"), None).unwrap();
+
+        // Create sighting
+        let sighting_id = create_sighting(
+            &conn,
+            Some(trip_id),
+            taxon_id,
+            Some("Foraging on ground"),
+            None,
+            Some("2025-01-15"),
+            Some("Near pond"),
+        ).unwrap();
+
+        assert!(sighting_id > 0);
+
+        let sighting = get_sighting_by_id(&conn, sighting_id).unwrap();
+        assert_eq!(sighting.trip_id, Some(trip_id));
+        assert_eq!(sighting.taxon_id, taxon_id);
+        assert_eq!(sighting.kingdom, "Animalia");
+        assert_eq!(sighting.species_epithet, Some("migratorius".to_string()));
+        assert_eq!(sighting.common_name, "American Robin");
+    }
+
+    #[test]
+    fn test_create_sighting_with_family_level_taxon() {
+        let conn = setup_test_db();
+
+        let taxon_id = create_taxon(
+            &conn,
+            "family",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            None,
+            None,
+            "Crow Family",
+        ).unwrap();
+
+        let sighting_id = create_sighting(
+            &conn,
+            None,
+            taxon_id,
+            Some("Black bird, couldn't ID to species"),
+            None,
+            None,
+            None,
+        ).unwrap();
+
+        let sighting = get_sighting_by_id(&conn, sighting_id).unwrap();
+        assert_eq!(sighting.trip_id, None);
+        assert_eq!(sighting.family, Some("Corvidae".to_string()));
+        assert_eq!(sighting.genus, None);
+        assert_eq!(sighting.species_epithet, None);
+        assert_eq!(sighting.common_name, "Crow Family");
+    }
+
+    #[test]
+    fn test_create_sighting_with_genus_level_taxon() {
+        let conn = setup_test_db();
+
+        let taxon_id = create_taxon(
+            &conn,
+            "genus",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Accipitriformes"),
+            Some("Accipitridae"),
+            Some("Buteo"),
+            None,
+            "Buteo Hawks",
+        ).unwrap();
+
+        let sighting_id = create_sighting(
+            &conn,
+            None,
+            taxon_id,
+            Some("Large hawk overhead"),
+            None,
+            None,
+            None,
+        ).unwrap();
+
+        let sighting = get_sighting_by_id(&conn, sighting_id).unwrap();
+        assert_eq!(sighting.genus, Some("Buteo".to_string()));
+        assert_eq!(sighting.species_epithet, None);
+    }
+
+    #[test]
+    fn test_create_sighting_with_invalid_taxon() {
+        let conn = setup_test_db();
+
+        let result = create_sighting(
+            &conn,
+            None,
+            99999,
+            None,
+            None,
+            None,
+            None,
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_delete_sighting() {
+        let conn = setup_test_db();
+
+        let taxon_id = create_taxon(
+            &conn,
+            "species",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Testidae"),
+            Some("Test"),
+            Some("temp"),
+            "Test Bird",
+        ).unwrap();
+
+        let sighting_id = create_sighting(&conn, None, taxon_id, None, None, None, None).unwrap();
+        let rows = delete_sighting(&conn, sighting_id).unwrap();
+        assert_eq!(rows, 1);
+
+        let result = get_sighting_by_id(&conn, sighting_id);
+        assert!(result.is_err());
+    }
+}

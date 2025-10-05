@@ -63,3 +63,145 @@ pub fn delete_taxon(conn: &Connection, id: i64) -> Result<usize> {
         .context("Failed to delete taxon")?;
     Ok(rows_affected)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup_test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+
+        // Create schema
+        let schema = std::fs::read_to_string("init.sql").unwrap();
+        conn.execute_batch(&schema).unwrap();
+
+        conn
+    }
+
+    #[test]
+    fn test_create_species_level_taxon() {
+        let conn = setup_test_db();
+
+        let id = create_taxon(
+            &conn,
+            "species",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Turdidae"),
+            Some("Turdus"),
+            Some("migratorius"),
+            "American Robin",
+        ).unwrap();
+
+        assert!(id > 0);
+
+        let taxon = get_taxon_by_id(&conn, id).unwrap();
+        assert_eq!(taxon.rank, "species");
+        assert_eq!(taxon.kingdom, "Animalia");
+        assert_eq!(taxon.phylum, Some("Chordata".to_string()));
+        assert_eq!(taxon.species_epithet, Some("migratorius".to_string()));
+        assert_eq!(taxon.common_name, "American Robin");
+    }
+
+    #[test]
+    fn test_create_family_level_taxon() {
+        let conn = setup_test_db();
+
+        let id = create_taxon(
+            &conn,
+            "family",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            None,
+            None,
+            "Crow Family",
+        ).unwrap();
+
+        let taxon = get_taxon_by_id(&conn, id).unwrap();
+        assert_eq!(taxon.rank, "family");
+        assert_eq!(taxon.family, Some("Corvidae".to_string()));
+        assert_eq!(taxon.genus, None);
+        assert_eq!(taxon.species_epithet, None);
+    }
+
+    #[test]
+    fn test_create_genus_level_taxon() {
+        let conn = setup_test_db();
+
+        let id = create_taxon(
+            &conn,
+            "genus",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Accipitriformes"),
+            Some("Accipitridae"),
+            Some("Buteo"),
+            None,
+            "Buteo Hawks",
+        ).unwrap();
+
+        let taxon = get_taxon_by_id(&conn, id).unwrap();
+        assert_eq!(taxon.rank, "genus");
+        assert_eq!(taxon.genus, Some("Buteo".to_string()));
+        assert_eq!(taxon.species_epithet, None);
+    }
+
+    #[test]
+    fn test_delete_taxon() {
+        let conn = setup_test_db();
+
+        let id = create_taxon(
+            &conn,
+            "species",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Testidae"),
+            Some("Test"),
+            Some("temp"),
+            "Temp Bird",
+        ).unwrap();
+
+        let rows = delete_taxon(&conn, id).unwrap();
+        assert_eq!(rows, 1);
+
+        // Verify it's gone
+        let result = get_taxon_by_id(&conn, id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_invalid_rank() {
+        let conn = setup_test_db();
+
+        let result = create_taxon(
+            &conn,
+            "invalid_rank",
+            "Animalia",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            "Test",
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_nonexistent_taxon() {
+        let conn = setup_test_db();
+        let result = get_taxon_by_id(&conn, 99999);
+        assert!(result.is_err());
+    }
+}

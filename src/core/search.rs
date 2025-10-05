@@ -137,3 +137,126 @@ pub fn run_search_taxa(conn: &Connection, query: &str) -> Result<Vec<Taxon>> {
         .context("Failed to parse taxon rows")?;
     Ok(results)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::taxon::create_taxon;
+    use crate::core::trip::create_trip;
+    use crate::core::sighting::create_sighting;
+
+    fn setup_test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+
+        let schema = std::fs::read_to_string("init.sql").unwrap();
+        conn.execute_batch(&schema).unwrap();
+
+        conn
+    }
+
+    #[test]
+    fn test_search_taxa_by_common_name() {
+        let conn = setup_test_db();
+
+        create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
+
+        let results = run_search_taxa(&conn, "Robin").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].common_name, "American Robin");
+    }
+
+    #[test]
+    fn test_search_taxa_by_family() {
+        let conn = setup_test_db();
+
+        create_taxon(&conn, "family", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Corvidae"), None, None, "Crow Family").unwrap();
+
+        let results = run_search_taxa(&conn, "Corvidae").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].family, Some("Corvidae".to_string()));
+        assert_eq!(results[0].rank, "family");
+    }
+
+    #[test]
+    fn test_search_sightings_by_species() {
+        let conn = setup_test_db();
+
+        let taxon_id = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
+        create_sighting(&conn, None, taxon_id, Some("Test note"), None, None, None).unwrap();
+
+        let results = run_search_sightings(&conn, "Robin").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].common_name, "American Robin");
+    }
+
+    #[test]
+    fn test_search_sightings_by_family() {
+        let conn = setup_test_db();
+
+        let taxon_id = create_taxon(&conn, "family", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Corvidae"), None, None, "Crow Family").unwrap();
+        create_sighting(&conn, None, taxon_id, None, None, None, None).unwrap();
+
+        let results = run_search_sightings(&conn, "Corvidae").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].family, Some("Corvidae".to_string()));
+    }
+
+    #[test]
+    fn test_search_sightings_by_location() {
+        let conn = setup_test_db();
+
+        let taxon_id = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
+        create_sighting(&conn, None, taxon_id, None, None, None, Some("Near the pond")).unwrap();
+
+        let results = run_search_sightings(&conn, "pond").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].location, Some("Near the pond".to_string()));
+    }
+
+    #[test]
+    fn test_search_trips_by_name() {
+        let conn = setup_test_db();
+
+        create_trip(&conn, "Morning Birding", Some("2025-01-15"), Some("Central Park"), None).unwrap();
+
+        let results = run_search_trips(&conn, "Birding").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "Morning Birding");
+    }
+
+    #[test]
+    fn test_search_trips_by_location() {
+        let conn = setup_test_db();
+
+        create_trip(&conn, "Morning Walk", None, Some("Central Park"), None).unwrap();
+
+        let results = run_search_trips(&conn, "Central Park").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].location, Some("Central Park".to_string()));
+    }
+
+    #[test]
+    fn test_search_trips_by_sighting_taxonomy() {
+        let conn = setup_test_db();
+
+        let trip_id = create_trip(&conn, "Birdwatching", None, None, None).unwrap();
+        let taxon_id = create_taxon(&conn, "family", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Corvidae"), None, None, "Crow Family").unwrap();
+        create_sighting(&conn, Some(trip_id), taxon_id, None, None, None, None).unwrap();
+
+        let results = run_search_trips(&conn, "Corvidae").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "Birdwatching");
+    }
+
+    #[test]
+    fn test_empty_query() {
+        let conn = setup_test_db();
+
+        let result = run_search_taxa(&conn, "");
+        assert!(result.is_err());
+
+        let result = run_search_sightings(&conn, "   ");
+        assert!(result.is_err());
+    }
+}
