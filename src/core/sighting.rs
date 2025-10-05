@@ -117,20 +117,71 @@ pub fn delete_sighting(conn: &Connection, id: i64) -> Result<usize> {
     Ok(rows_affected)
 }
 
-/// Get all sightings of a specific taxon
-pub fn get_sightings_by_taxon_id(conn: &Connection, taxon_id: i64) -> Result<Vec<Sighting>> {
-    let sql = r#"
+/// Get all sightings of a specific taxon (matches based on taxonomic hierarchy)
+pub fn get_sightings_by_taxon(conn: &Connection, taxon: &crate::models::Taxon) -> Result<Vec<Sighting>> {
+
+    // Build WHERE clause based on taxon rank
+    let mut conditions = vec!["kingdom = ?1".to_string()];
+    let mut params: Vec<&str> = vec![&taxon.kingdom];
+
+    if taxon.rank != "kingdom" {
+        if let Some(ref p) = taxon.phylum {
+            conditions.push("phylum = ?".to_string());
+            params.push(p);
+        }
+    }
+
+    if taxon.rank != "kingdom" && taxon.rank != "phylum" {
+        if let Some(ref c) = taxon.class {
+            conditions.push("class = ?".to_string());
+            params.push(c);
+        }
+    }
+
+    if taxon.rank == "order" || taxon.rank == "family" || taxon.rank == "genus" || taxon.rank == "species" {
+        if let Some(ref o) = taxon.order {
+            conditions.push("\"order\" = ?".to_string());
+            params.push(o);
+        }
+    }
+
+    if taxon.rank == "family" || taxon.rank == "genus" || taxon.rank == "species" {
+        if let Some(ref f) = taxon.family {
+            conditions.push("family = ?".to_string());
+            params.push(f);
+        }
+    }
+
+    if taxon.rank == "genus" || taxon.rank == "species" {
+        if let Some(ref g) = taxon.genus {
+            conditions.push("genus = ?".to_string());
+            params.push(g);
+        }
+    }
+
+    if taxon.rank == "species" {
+        if let Some(ref s) = taxon.species_epithet {
+            conditions.push("species_epithet = ?".to_string());
+            params.push(s);
+        }
+    }
+
+    let where_clause = conditions.join(" AND ");
+    let sql = format!(
+        r#"
         SELECT id, trip_id, taxon_id, kingdom, phylum, class, "order", family,
                genus, species_epithet, common_name, notes, media_path, date, location
         FROM sightings
-        WHERE taxon_id = ?1
+        WHERE {}
         ORDER BY date DESC, id DESC
-    "#;
+        "#,
+        where_clause
+    );
 
-    let mut stmt = conn.prepare(sql)
+    let mut stmt = conn.prepare(&sql)
         .context("Failed to prepare get sightings by taxon query")?;
 
-    let rows = stmt.query_map(params![taxon_id], |row| {
+    let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
         Ok(Sighting {
             id: row.get(0)?,
             trip_id: row.get(1)?,
@@ -196,7 +247,7 @@ pub fn get_sightings_by_trip_id(conn: &Connection, trip_id: i64) -> Result<Vec<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::taxon::create_taxon;
+    use crate::core::taxon::{create_taxon, get_taxon_by_id};
     use crate::core::trip::create_trip;
 
     fn setup_test_db() -> Connection {
@@ -360,7 +411,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_sightings_by_taxon_id() {
+    fn test_get_sightings_by_taxon() {
         let conn = setup_test_db();
 
         let taxon_id = create_taxon(
@@ -381,7 +432,8 @@ mod tests {
         create_sighting(&conn, None, taxon_id, None, None, Some("2025-01-20"), None).unwrap();
         create_sighting(&conn, None, taxon_id, None, None, Some("2025-01-10"), None).unwrap();
 
-        let results = get_sightings_by_taxon_id(&conn, taxon_id).unwrap();
+        let taxon = get_taxon_by_id(&conn, taxon_id).unwrap();
+        let results = get_sightings_by_taxon(&conn, &taxon).unwrap();
         assert_eq!(results.len(), 3);
 
         // Should be ordered by date DESC
@@ -397,7 +449,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_sightings_by_taxon_id_empty() {
+    fn test_get_sightings_by_taxon_empty() {
         let conn = setup_test_db();
 
         let taxon_id = create_taxon(
@@ -414,7 +466,8 @@ mod tests {
         ).unwrap();
 
         // No sightings created
-        let results = get_sightings_by_taxon_id(&conn, taxon_id).unwrap();
+        let taxon = get_taxon_by_id(&conn, taxon_id).unwrap();
+        let results = get_sightings_by_taxon(&conn, &taxon).unwrap();
         assert_eq!(results.len(), 0);
     }
 

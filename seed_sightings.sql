@@ -204,3 +204,55 @@ VALUES
         '2025-05-22',
         'Campsite HQ'
     );
+
+-- Sightings without trips (casual observations)
+INSERT
+    OR IGNORE INTO sightings (
+        trip_id,
+        taxon_id,
+        kingdom,
+        phylum,
+        class,
+        "order",
+        family,
+        genus,
+        species_epithet,
+        common_name,
+        notes,
+        media_path,
+        date,
+        location
+    )
+VALUES
+    (
+        NULL,
+        4,
+        'Animalia',
+        'Chordata',
+        'Aves',
+        'Passeriformes',
+        'Corvidae',
+        NULL,
+        NULL,
+        'Crow Family',
+        'Unknown corvid observed in backyard — too far to identify species.',
+        NULL,
+        '2025-09-12',
+        'Home Backyard'
+    ),
+    (
+        NULL,
+        1,
+        'Animalia',
+        'Chordata',
+        'Aves',
+        'Passeriformes',
+        'Corvidae',
+        'Cyanocitta',
+        'cristata',
+        'Blue Jay',
+        'Quick sighting at bird feeder during morning coffee.',
+        NULL,
+        '2025-10-01',
+        'Home Backyard'
+    );

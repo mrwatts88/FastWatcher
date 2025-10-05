@@ -33,6 +33,60 @@ export struct TripItem {
     location: string,
 }
 
+// Detail structs
+export struct SightingDetail {
+    id: int,
+    common-name: string,
+    taxonomy: string,
+    date: string,
+    location: string,
+    notes: string,
+    media-path: string,
+    taxon-id: int,
+    trip-id: int,
+    has-trip: bool,
+}
+
+export struct TaxonDetail {
+    id: int,
+    rank: string,
+    common-name: string,
+    kingdom: string,
+    phylum: string,
+    class: string,
+    order: string,
+    family: string,
+    genus: string,
+    species-epithet: string,
+}
+
+export struct TripDetail {
+    id: int,
+    name: string,
+    date: string,
+    location: string,
+    notes: string,
+}
+
+// Related entity item structs
+export struct RelatedSightingItem {
+    id: int,
+    common-name: string,
+    date: string,
+}
+
+export struct RelatedTaxonItem {
+    id: int,
+    common-name: string,
+    rank: string,
+}
+
+export struct RelatedTripItem {
+    id: int,
+    name: string,
+    date: string,
+}
+
 // Sighting card component
 component SightingCard inherits Rectangle {
     in property <SightingItem> item;
@@ -185,67 +239,476 @@ component TripCard inherits Rectangle {
     }
 }
 
-// Detail view component
-component DetailView inherits Rectangle {
-    in property <string> entity-type;
-    in property <int> entity-id;
-    callback back();
+// Back button component (reusable)
+component BackButton inherits Rectangle {
+    callback clicked();
 
-    background: Colors.bg;
+    height: 40px;
+    width: 100px;
+    background: transparent;
 
-    VerticalLayout {
-        padding: 20px;
-        spacing: 20px;
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
 
-        // Back button
-        Rectangle {
-            height: 40px;
-            width: 100px;
-            background: transparent;
+    HorizontalLayout {
+        spacing: 8px;
 
-            TouchArea {
-                clicked => { root.back(); }
-            }
-
-            HorizontalLayout {
-                spacing: 8px;
-
-                Text {
-                    text: "←";
-                    font-size: 20px;
-                    color: Colors.accent-2;
-                }
-
-                Text {
-                    text: "Back";
-                    font-size: 16px;
-                    color: Colors.accent-2;
-                    vertical-alignment: center;
-                }
-            }
+        Text {
+            text: "←";
+            font-size: 20px;
+            color: Colors.accent-2;
         }
 
-        // Detail content
+        Text {
+            text: "Back";
+            font-size: 16px;
+            color: Colors.accent-2;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Field display component
+component FieldRow inherits VerticalLayout {
+    in property <string> label;
+    in property <string> value;
+
+    spacing: 4px;
+
+    Text {
+        text: label;
+        font-size: 11px;
+        font-weight: 600;
+        color: Colors.accent-1;
+    }
+
+    Text {
+        text: value;
+        font-size: 15px;
+        color: Colors.text;
+    }
+}
+
+// Related item card component
+component RelatedCard inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    callback clicked();
+
+    height: 50px;
+    background: Colors.white;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: Colors.border;
+
+    states [
+        hover when touch.has-hover: {
+            background: #f5f5f5;
+        }
+    ]
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 8px;
+
         VerticalLayout {
-            spacing: 12px;
+            spacing: 2px;
 
             Text {
-                text: entity-type + " Detail";
-                font-size: 28px;
-                font-weight: 700;
+                text: title;
+                font-size: 14px;
+                font-weight: 600;
                 color: Colors.text;
             }
 
-            Text {
-                text: "ID: " + entity-id;
-                font-size: 18px;
+            if subtitle != "": Text {
+                text: subtitle;
+                font-size: 12px;
                 color: Colors.accent-1;
             }
+        }
+    }
+}
 
-            Text {
-                text: "(Detailed view coming soon...)";
-                font-size: 14px;
-                color: Colors.accent-1;
+// Sighting Detail View
+component SightingDetailView inherits Rectangle {
+    in property <SightingDetail> sighting;
+    in property <[RelatedTaxonItem]> related-taxa;
+    in property <[RelatedTripItem]> related-trips;
+    callback back();
+    callback view-taxon(int);
+    callback view-trip(int);
+
+    background: Colors.bg;
+
+    Flickable {
+        VerticalLayout {
+            alignment: start;
+            padding: 20px;
+            spacing: 20px;
+
+            BackButton {
+                clicked => { root.back(); }
+            }
+
+            // Header
+            VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "SIGHTING";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: Colors.accent-2;
+                    letter-spacing: 1px;
+                }
+
+                Text {
+                    text: sighting.common-name;
+                    font-size: 32px;
+                    font-weight: 700;
+                    color: Colors.text;
+                }
+
+                Text {
+                    text: sighting.taxonomy;
+                    font-size: 14px;
+                    color: Colors.accent-1;
+                }
+            }
+
+            // Info section
+            Rectangle {
+                background: Colors.white;
+                border-radius: 8px;
+
+                VerticalLayout {
+                    alignment: start;
+                    padding: 16px;
+                    spacing: 16px;
+
+                    if sighting.date != "": FieldRow {
+                        label: "DATE";
+                        value: sighting.date;
+                    }
+
+                    if sighting.location != "": FieldRow {
+                        label: "LOCATION";
+                        value: sighting.location;
+                    }
+
+                    if sighting.notes != "": FieldRow {
+                        label: "NOTES";
+                        value: sighting.notes;
+                    }
+
+                    if sighting.media-path != "": FieldRow {
+                        label: "MEDIA";
+                        value: sighting.media-path;
+                    }
+                }
+            }
+
+            // Related Taxon
+            if related-taxa.length > 0: VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Taxon";
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: Colors.text;
+                }
+
+                for taxon in related-taxa: RelatedCard {
+                    title: taxon.common-name;
+                    subtitle: "[" + taxon.rank + "]";
+                    clicked => { root.view-taxon(taxon.id); }
+                }
+            }
+
+            // Related Trip
+            if sighting.has-trip && related-trips.length > 0: VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Trip";
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: Colors.text;
+                }
+
+                for trip in related-trips: RelatedCard {
+                    title: trip.name;
+                    subtitle: trip.date;
+                    clicked => { root.view-trip(trip.id); }
+                }
+            }
+        }
+    }
+}
+
+// Taxon Detail View
+component TaxonDetailView inherits Rectangle {
+    in property <TaxonDetail> taxon;
+    in property <[RelatedSightingItem]> related-sightings;
+    in property <[RelatedTripItem]> related-trips;
+    callback back();
+    callback view-sighting(int);
+    callback view-trip(int);
+
+    background: Colors.bg;
+
+    Flickable {
+        VerticalLayout {
+            alignment: start;
+            padding: 20px;
+            spacing: 20px;
+
+            BackButton {
+                clicked => { root.back(); }
+            }
+
+            // Header
+            VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "TAXON";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: Colors.accent-2;
+                    letter-spacing: 1px;
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+
+                    Text {
+                        text: taxon.common-name;
+                        font-size: 32px;
+                        font-weight: 700;
+                        color: Colors.text;
+                    }
+
+                    Rectangle {
+                        width: 70px;
+                        height: 28px;
+                        background: Colors.accent-1;
+                        border-radius: 4px;
+
+                        Text {
+                            text: taxon.rank;
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: Colors.white;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Taxonomy section
+            Rectangle {
+                background: Colors.white;
+                border-radius: 8px;
+
+                VerticalLayout {
+                    alignment: start;
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Taxonomy";
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: Colors.text;
+                    }
+
+                    FieldRow {
+                        label: "KINGDOM";
+                        value: taxon.kingdom;
+                    }
+
+                    if taxon.phylum != "": FieldRow {
+                        label: "PHYLUM";
+                        value: taxon.phylum;
+                    }
+
+                    if taxon.class != "": FieldRow {
+                        label: "CLASS";
+                        value: taxon.class;
+                    }
+
+                    if taxon.order != "": FieldRow {
+                        label: "ORDER";
+                        value: taxon.order;
+                    }
+
+                    if taxon.family != "": FieldRow {
+                        label: "FAMILY";
+                        value: taxon.family;
+                    }
+
+                    if taxon.genus != "": FieldRow {
+                        label: "GENUS";
+                        value: taxon.genus;
+                    }
+
+                    if taxon.species-epithet != "": FieldRow {
+                        label: "SPECIES";
+                        value: taxon.species-epithet;
+                    }
+                }
+            }
+
+            // Sightings section
+            if related-sightings.length > 0: VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Sightings (" + related-sightings.length + ")";
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: Colors.text;
+                }
+
+                for sighting in related-sightings: RelatedCard {
+                    title: sighting.common-name;
+                    subtitle: sighting.date;
+                    clicked => { root.view-sighting(sighting.id); }
+                }
+            }
+
+            // Trips section
+            if related-trips.length > 0: VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Trips (" + related-trips.length + ")";
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: Colors.text;
+                }
+
+                for trip in related-trips: RelatedCard {
+                    title: trip.name;
+                    subtitle: trip.date;
+                    clicked => { root.view-trip(trip.id); }
+                }
+            }
+        }
+    }
+}
+
+// Trip Detail View
+component TripDetailView inherits Rectangle {
+    in property <TripDetail> trip;
+    in property <[RelatedSightingItem]> related-sightings;
+    in property <[RelatedTaxonItem]> related-taxa;
+    callback back();
+    callback view-sighting(int);
+    callback view-taxon(int);
+
+    background: Colors.bg;
+
+    Flickable {
+        VerticalLayout {
+            alignment: start;
+            padding: 20px;
+            spacing: 20px;
+
+            BackButton {
+                clicked => { root.back(); }
+            }
+
+            // Header
+            VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "TRIP";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: Colors.accent-2;
+                    letter-spacing: 1px;
+                }
+
+                Text {
+                    text: trip.name;
+                    font-size: 32px;
+                    font-weight: 700;
+                    color: Colors.text;
+                }
+            }
+
+            // Info section
+            Rectangle {
+                background: Colors.white;
+                border-radius: 8px;
+
+                VerticalLayout {
+                    alignment: start;
+                    padding: 16px;
+                    spacing: 16px;
+
+                    if trip.date != "": FieldRow {
+                        label: "DATE";
+                        value: trip.date;
+                    }
+
+                    if trip.location != "": FieldRow {
+                        label: "LOCATION";
+                        value: trip.location;
+                    }
+
+                    if trip.notes != "": FieldRow {
+                        label: "NOTES";
+                        value: trip.notes;
+                    }
+                }
+            }
+
+            // Taxa section
+            if related-taxa.length > 0: VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Taxa (" + related-taxa.length + ")";
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: Colors.text;
+                }
+
+                for taxon in related-taxa: RelatedCard {
+                    title: taxon.common-name;
+                    subtitle: taxon.rank;
+                    clicked => { root.view-taxon(taxon.id); }
+                }
+            }
+
+            // Sightings section
+            if related-sightings.length > 0: VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Sightings (" + related-sightings.length + ")";
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: Colors.text;
+                }
+
+                for sighting in related-sightings: RelatedCard {
+                    title: sighting.common-name;
+                    subtitle: sighting.date;
+                    clicked => { root.view-sighting(sighting.id); }
+                }
             }
         }
     }
@@ -266,12 +729,25 @@ export component AppWindow inherits Window {
     in-out property <[TaxonItem]> taxa-model;
     in-out property <[TripItem]> trips-model;
 
+    // Detail view properties
+    in-out property <SightingDetail> current-sighting;
+    in-out property <TaxonDetail> current-taxon;
+    in-out property <TripDetail> current-trip;
+
+    // Related entity lists
+    in-out property <[RelatedSightingItem]> related-sightings;
+    in-out property <[RelatedTaxonItem]> related-taxa;
+    in-out property <[RelatedTripItem]> related-trips;
+
     // Callbacks
     callback search-changed(string);
     callback view-sighting-detail(int);
     callback view-taxon-detail(int);
     callback view-trip-detail(int);
     callback back-to-search();
+    callback view-related-sighting(int);
+    callback view-related-taxon(int);
+    callback view-related-trip(int);
 
     title: "Fast Watcher";
     background: Colors.bg;
@@ -280,6 +756,7 @@ export component AppWindow inherits Window {
 
     // Search view
     if current-view == "search": VerticalLayout {
+        alignment: start;
         padding: 20px;
         spacing: 16px;
 
@@ -416,21 +893,30 @@ export component AppWindow inherits Window {
     }
 
     // Detail views
-    if current-view == "sighting-detail": DetailView {
-        entity-type: "Sighting";
-        entity-id: root.detail-entity-id;
+    if current-view == "sighting-detail": SightingDetailView {
+        sighting: root.current-sighting;
+        related-taxa: root.related-taxa;
+        related-trips: root.related-trips;
         back => { root.back-to-search(); }
+        view-taxon(id) => { root.view-related-taxon(id); }
+        view-trip(id) => { root.view-related-trip(id); }
     }
 
-    if current-view == "taxon-detail": DetailView {
-        entity-type: "Taxon";
-        entity-id: root.detail-entity-id;
+    if current-view == "taxon-detail": TaxonDetailView {
+        taxon: root.current-taxon;
+        related-sightings: root.related-sightings;
+        related-trips: root.related-trips;
         back => { root.back-to-search(); }
+        view-sighting(id) => { root.view-related-sighting(id); }
+        view-trip(id) => { root.view-related-trip(id); }
     }
 
-    if current-view == "trip-detail": DetailView {
-        entity-type: "Trip";
-        entity-id: root.detail-entity-id;
+    if current-view == "trip-detail": TripDetailView {
+        trip: root.current-trip;
+        related-sightings: root.related-sightings;
+        related-taxa: root.related-taxa;
         back => { root.back-to-search(); }
+        view-sighting(id) => { root.view-related-sighting(id); }
+        view-taxon(id) => { root.view-related-taxon(id); }
     }
 }

@@ -51,20 +51,70 @@ pub fn delete_trip(conn: &Connection, id: i64) -> Result<usize> {
     Ok(rows_affected)
 }
 
-/// Get all trips where a specific taxon was sighted
-pub fn get_trips_by_taxon_id(conn: &Connection, taxon_id: i64) -> Result<Vec<Trip>> {
-    let sql = r#"
+/// Get all trips where a specific taxon was sighted (matches based on taxonomic hierarchy)
+pub fn get_trips_by_taxon(conn: &Connection, taxon: &crate::models::Taxon) -> Result<Vec<Trip>> {
+    // Build WHERE clause based on taxon rank
+    let mut conditions = vec!["sightings.kingdom = ?1".to_string()];
+    let mut params: Vec<&str> = vec![&taxon.kingdom];
+
+    if taxon.rank != "kingdom" {
+        if let Some(ref p) = taxon.phylum {
+            conditions.push("sightings.phylum = ?".to_string());
+            params.push(p);
+        }
+    }
+
+    if taxon.rank != "kingdom" && taxon.rank != "phylum" {
+        if let Some(ref c) = taxon.class {
+            conditions.push("sightings.class = ?".to_string());
+            params.push(c);
+        }
+    }
+
+    if taxon.rank == "order" || taxon.rank == "family" || taxon.rank == "genus" || taxon.rank == "species" {
+        if let Some(ref o) = taxon.order {
+            conditions.push("sightings.\"order\" = ?".to_string());
+            params.push(o);
+        }
+    }
+
+    if taxon.rank == "family" || taxon.rank == "genus" || taxon.rank == "species" {
+        if let Some(ref f) = taxon.family {
+            conditions.push("sightings.family = ?".to_string());
+            params.push(f);
+        }
+    }
+
+    if taxon.rank == "genus" || taxon.rank == "species" {
+        if let Some(ref g) = taxon.genus {
+            conditions.push("sightings.genus = ?".to_string());
+            params.push(g);
+        }
+    }
+
+    if taxon.rank == "species" {
+        if let Some(ref s) = taxon.species_epithet {
+            conditions.push("sightings.species_epithet = ?".to_string());
+            params.push(s);
+        }
+    }
+
+    let where_clause = conditions.join(" AND ");
+    let sql = format!(
+        r#"
         SELECT DISTINCT trips.id, trips.name, trips.date, trips.location, trips.notes
         FROM trips
         INNER JOIN sightings ON sightings.trip_id = trips.id
-        WHERE sightings.taxon_id = ?1
+        WHERE {}
         ORDER BY trips.date DESC, trips.id DESC
-    "#;
+        "#,
+        where_clause
+    );
 
-    let mut stmt = conn.prepare(sql)
+    let mut stmt = conn.prepare(&sql)
         .context("Failed to prepare get trips by taxon query")?;
 
-    let rows = stmt.query_map(params![taxon_id], |row| {
+    let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
         Ok(Trip {
             id: row.get(0)?,
             name: row.get(1)?,
@@ -176,7 +226,8 @@ mod tests {
         create_sighting(&conn, Some(trip1), taxon_id, None, None, None, None).unwrap();
         create_sighting(&conn, Some(trip2), taxon_id, None, None, None, None).unwrap();
 
-        let results = get_trips_by_taxon_id(&conn, taxon_id).unwrap();
+        let taxon = crate::core::taxon::get_taxon_by_id(&conn, taxon_id).unwrap();
+        let results = get_trips_by_taxon(&conn, &taxon).unwrap();
         assert_eq!(results.len(), 2);
 
         // Should be ordered by date DESC (trip1: 2025-01-20, trip2: 2025-01-15)
@@ -207,7 +258,8 @@ mod tests {
             "American Robin",
         ).unwrap();
 
-        let results = get_trips_by_taxon_id(&conn, taxon_id).unwrap();
+        let taxon = crate::core::taxon::get_taxon_by_id(&conn, taxon_id).unwrap();
+        let results = get_trips_by_taxon(&conn, &taxon).unwrap();
         assert_eq!(results.len(), 0);
     }
 
@@ -234,7 +286,8 @@ mod tests {
         // Create sighting without trip
         create_sighting(&conn, None, taxon_id, None, None, None, None).unwrap();
 
-        let results = get_trips_by_taxon_id(&conn, taxon_id).unwrap();
+        let taxon = crate::core::taxon::get_taxon_by_id(&conn, taxon_id).unwrap();
+        let results = get_trips_by_taxon(&conn, &taxon).unwrap();
         assert_eq!(results.len(), 0);
     }
 
@@ -266,7 +319,8 @@ mod tests {
         create_sighting(&conn, Some(trip_id), taxon_id, None, None, None, None).unwrap();
 
         // Should return trip only once (DISTINCT)
-        let results = get_trips_by_taxon_id(&conn, taxon_id).unwrap();
+        let taxon = crate::core::taxon::get_taxon_by_id(&conn, taxon_id).unwrap();
+        let results = get_trips_by_taxon(&conn, &taxon).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].name, "Morning Walk");
     }
