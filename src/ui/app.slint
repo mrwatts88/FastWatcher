@@ -80,6 +80,7 @@ export struct RelatedTaxonItem {
     id: int,
     common-name: string,
     rank: string,
+    taxonomy: string,
 }
 
 export struct RelatedTripItem {
@@ -336,6 +337,70 @@ component RelatedCard inherits Rectangle {
     }
 }
 
+// Related taxon card component (with rank pill and taxonomy)
+component RelatedTaxonCard inherits Rectangle {
+    in property <RelatedTaxonItem> taxon;
+    callback clicked();
+
+    height: 60px;
+    background: Colors.white;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: Colors.border;
+
+    states [
+        hover when touch.has-hover: {
+            background: #f5f5f5;
+        }
+    ]
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 8px;
+
+        VerticalLayout {
+            spacing: 4px;
+
+            HorizontalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: taxon.common-name;
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: Colors.text;
+                }
+
+                Rectangle {
+                    width: 50px;
+                    height: 18px;
+                    background: Colors.accent-1;
+                    border-radius: 3px;
+
+                    Text {
+                        text: taxon.rank;
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: Colors.white;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            Text {
+                text: taxon.taxonomy;
+                font-size: 11px;
+                color: Colors.accent-1;
+            }
+        }
+    }
+}
+
 // Sighting Detail View
 component SightingDetailView inherits Rectangle {
     in property <SightingDetail> sighting;
@@ -426,9 +491,8 @@ component SightingDetailView inherits Rectangle {
                     color: Colors.text;
                 }
 
-                for taxon in related-taxa: RelatedCard {
-                    title: taxon.common-name;
-                    subtitle: "[" + taxon.rank + "]";
+                for taxon in related-taxa: RelatedTaxonCard {
+                    taxon: taxon;
                     clicked => { root.view-taxon(taxon.id); }
                 }
             }
@@ -692,9 +756,8 @@ component TripDetailView inherits Rectangle {
                     color: Colors.text;
                 }
 
-                for taxon in related-taxa: RelatedCard {
-                    title: taxon.common-name;
-                    subtitle: taxon.rank;
+                for taxon in related-taxa: RelatedTaxonCard {
+                    taxon: taxon;
                     clicked => { root.view-taxon(taxon.id); }
                 }
             }

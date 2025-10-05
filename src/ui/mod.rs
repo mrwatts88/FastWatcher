@@ -161,6 +161,7 @@ fn perform_search(ui: &AppWindow, query: &str) {
             if let Some(ref c) = t.class { parts.push(c.clone()); }
             if let Some(ref o) = t.order { parts.push(o.clone()); }
             if let Some(ref f) = t.family { parts.push(f.clone()); }
+            if let Some(ref sf) = t.subfamily { parts.push(sf.clone()); }
             if let Some(ref g) = t.genus { parts.push(g.clone()); }
             if let Some(ref s) = t.species_epithet { parts.push(s.clone()); }
 
@@ -219,6 +220,7 @@ fn fetch_sighting_detail(ui: &AppWindow, id: i32) {
     if let Some(ref c) = sighting.class { tax_parts.push(c.clone()); }
     if let Some(ref o) = sighting.order { tax_parts.push(o.clone()); }
     if let Some(ref f) = sighting.family { tax_parts.push(f.clone()); }
+    if let Some(ref sf) = sighting.subfamily { tax_parts.push(sf.clone()); }
     if let Some(ref g) = sighting.genus { tax_parts.push(g.clone()); }
     if let Some(ref s) = sighting.species_epithet { tax_parts.push(s.clone()); }
 
@@ -240,10 +242,21 @@ fn fetch_sighting_detail(ui: &AppWindow, id: i32) {
 
     // Get related taxon (always exists)
     let related_taxa = if let Ok(taxon) = get_taxon_by_id(&conn, sighting.taxon_id) {
+        // Build taxonomy string
+        let mut tax_parts = vec![taxon.kingdom.clone()];
+        if let Some(ref p) = taxon.phylum { tax_parts.push(p.clone()); }
+        if let Some(ref c) = taxon.class { tax_parts.push(c.clone()); }
+        if let Some(ref o) = taxon.order { tax_parts.push(o.clone()); }
+        if let Some(ref f) = taxon.family { tax_parts.push(f.clone()); }
+        if let Some(ref sf) = taxon.subfamily { tax_parts.push(sf.clone()); }
+        if let Some(ref g) = taxon.genus { tax_parts.push(g.clone()); }
+        if let Some(ref s) = taxon.species_epithet { tax_parts.push(s.clone()); }
+
         vec![RelatedTaxonItem {
             id: taxon.id as i32,
             common_name: SharedString::from(taxon.common_name),
             rank: SharedString::from(taxon.rank),
+            taxonomy: SharedString::from(tax_parts.join(" / ")),
         }]
     } else {
         vec![]
@@ -386,12 +399,23 @@ fn fetch_trip_detail(ui: &AppWindow, id: i32) {
         if !taxa_map.contains_key(&sighting.taxon_id) {
             // Fetch the taxon to get rank info
             if let Ok(taxon) = get_taxon_by_id(&conn, sighting.taxon_id) {
+                // Build taxonomy string
+                let mut tax_parts = vec![taxon.kingdom.clone()];
+                if let Some(ref p) = taxon.phylum { tax_parts.push(p.clone()); }
+                if let Some(ref c) = taxon.class { tax_parts.push(c.clone()); }
+                if let Some(ref o) = taxon.order { tax_parts.push(o.clone()); }
+                if let Some(ref f) = taxon.family { tax_parts.push(f.clone()); }
+                if let Some(ref sf) = taxon.subfamily { tax_parts.push(sf.clone()); }
+                if let Some(ref g) = taxon.genus { tax_parts.push(g.clone()); }
+                if let Some(ref s) = taxon.species_epithet { tax_parts.push(s.clone()); }
+
                 taxa_map.insert(
                     sighting.taxon_id,
                     RelatedTaxonItem {
                         id: taxon.id as i32,
                         common_name: SharedString::from(taxon.common_name),
                         rank: SharedString::from(taxon.rank),
+                        taxonomy: SharedString::from(tax_parts.join(" / ")),
                     }
                 );
             }
