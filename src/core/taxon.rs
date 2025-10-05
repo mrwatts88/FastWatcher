@@ -11,18 +11,19 @@ pub fn create_taxon(
     class: Option<&str>,
     order: Option<&str>,
     family: Option<&str>,
+    subfamily: Option<&str>,
     genus: Option<&str>,
     species_epithet: Option<&str>,
     common_name: &str,
 ) -> Result<i64> {
     let sql = r#"
-        INSERT INTO taxa (rank, kingdom, phylum, class, "order", family, genus, species_epithet, common_name)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+        INSERT INTO taxa (rank, kingdom, phylum, class, "order", family, subfamily, genus, species_epithet, common_name)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
     "#;
 
     conn.execute(
         sql,
-        params![rank, kingdom, phylum, class, order, family, genus, species_epithet, common_name],
+        params![rank, kingdom, phylum, class, order, family, subfamily, genus, species_epithet, common_name],
     )
     .context("Failed to insert taxon")?;
 
@@ -33,7 +34,7 @@ pub fn create_taxon(
 /// Get a taxon by ID
 pub fn get_taxon_by_id(conn: &Connection, id: i64) -> Result<Taxon> {
     let sql = r#"
-        SELECT id, rank, kingdom, phylum, class, "order", family, genus, species_epithet, common_name
+        SELECT id, rank, kingdom, phylum, class, "order", family, subfamily, genus, species_epithet, common_name
         FROM taxa
         WHERE id = ?1
     "#;
@@ -47,9 +48,10 @@ pub fn get_taxon_by_id(conn: &Connection, id: i64) -> Result<Taxon> {
             class: row.get(4)?,
             order: row.get(5)?,
             family: row.get(6)?,
-            genus: row.get(7)?,
-            species_epithet: row.get(8)?,
-            common_name: row.get(9)?,
+            subfamily: row.get(7)?,
+            genus: row.get(8)?,
+            species_epithet: row.get(9)?,
+            common_name: row.get(10)?,
         })
     }).context("Failed to fetch taxon")?;
 
@@ -91,6 +93,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Turdidae"),
+            None,
             Some("Turdus"),
             Some("migratorius"),
             "American Robin",
@@ -120,6 +123,7 @@ mod tests {
             Some("Corvidae"),
             None,
             None,
+            None,
             "Crow Family",
         ).unwrap();
 
@@ -142,6 +146,7 @@ mod tests {
             Some("Aves"),
             Some("Accipitriformes"),
             Some("Accipitridae"),
+            None,
             Some("Buteo"),
             None,
             "Buteo Hawks",
@@ -165,6 +170,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Testidae"),
+            None,
             Some("Test"),
             Some("temp"),
             "Temp Bird",
@@ -186,6 +192,7 @@ mod tests {
             &conn,
             "invalid_rank",
             "Animalia",
+            None,
             None,
             None,
             None,

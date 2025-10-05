@@ -32,6 +32,7 @@ fn test_taxon_workflow() {
         Some("Aves"),
         Some("Passeriformes"),
         Some("Turdidae"),
+        None,
         Some("Turdus"),
         Some("migratorius"),
         "American Robin",
@@ -49,6 +50,7 @@ fn test_taxon_workflow() {
         Some("Parulidae"),
         None,
         None,
+        None,
         "Warbler Family",
     ).unwrap();
     assert!(warbler_fam_id > 0);
@@ -62,6 +64,7 @@ fn test_taxon_workflow() {
         Some("Aves"),
         Some("Accipitriformes"),
         Some("Accipitridae"),
+        None,
         Some("Buteo"),
         None,
         "Buteo Hawks",
@@ -101,6 +104,7 @@ fn test_taxon_workflow() {
         Some("Aves"),
         Some("Passeriformes"),
         Some("Testidae"),
+        None,
         Some("Test"),
         Some("temp"),
         "Temp Bird",
@@ -118,6 +122,7 @@ fn test_invalid_taxon_rank() {
         &conn,
         "invalid_rank",
         "Animalia",
+        None,
         None,
         None,
         None,
@@ -192,6 +197,7 @@ fn test_sighting_workflow() {
         Some("Aves"),
         Some("Passeriformes"),
         Some("Turdidae"),
+        None,
         Some("Turdus"),
         Some("migratorius"),
         "American Robin",
@@ -207,6 +213,7 @@ fn test_sighting_workflow() {
         Some("Parulidae"),
         None,
         None,
+        None,
         "Warbler Family",
     ).unwrap();
 
@@ -218,6 +225,7 @@ fn test_sighting_workflow() {
         Some("Aves"),
         Some("Accipitriformes"),
         Some("Accipitridae"),
+        None,
         Some("Buteo"),
         None,
         "Buteo Hawks",
@@ -354,6 +362,7 @@ fn test_search_trips_by_sighting_taxonomy() {
         Some("Corvidae"),
         None,
         None,
+        None,
         "Crow Family",
     ).unwrap();
 
@@ -379,6 +388,7 @@ fn test_search_across_multiple_ranks() {
         Some("Aves"),
         Some("Passeriformes"),
         Some("Turdidae"),
+        None,
         Some("Turdus"),
         Some("migratorius"),
         "American Robin",
@@ -392,6 +402,7 @@ fn test_search_across_multiple_ranks() {
         Some("Aves"),
         Some("Passeriformes"),
         Some("Parulidae"),
+        None,
         None,
         None,
         "Warbler Family",

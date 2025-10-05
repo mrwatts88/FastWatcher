@@ -45,7 +45,7 @@ pub enum Commands {
     // Taxon commands
     /// Add a new taxon
     AddTaxon {
-        /// Taxonomic rank (kingdom, phylum, class, order, family, genus, species)
+        /// Taxonomic rank (kingdom, phylum, class, order, family, subfamily, genus, species)
         rank: String,
         /// Kingdom (required)
         kingdom: String,
@@ -59,6 +59,8 @@ pub enum Commands {
         order: Option<String>,
         #[arg(long)]
         family: Option<String>,
+        #[arg(long)]
+        subfamily: Option<String>,
         #[arg(long)]
         genus: Option<String>,
         #[arg(long)]

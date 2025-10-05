@@ -71,17 +71,24 @@ pub fn get_trips_by_taxon(conn: &Connection, taxon: &crate::models::Taxon) -> Re
         }
     }
 
-    if taxon.rank == "order" || taxon.rank == "family" || taxon.rank == "genus" || taxon.rank == "species" {
+    if taxon.rank == "order" || taxon.rank == "family" || taxon.rank == "subfamily" || taxon.rank == "genus" || taxon.rank == "species" {
         if let Some(ref o) = taxon.order {
             conditions.push("sightings.\"order\" = ?".to_string());
             params.push(o);
         }
     }
 
-    if taxon.rank == "family" || taxon.rank == "genus" || taxon.rank == "species" {
+    if taxon.rank == "family" || taxon.rank == "subfamily" || taxon.rank == "genus" || taxon.rank == "species" {
         if let Some(ref f) = taxon.family {
             conditions.push("sightings.family = ?".to_string());
             params.push(f);
+        }
+    }
+
+    if taxon.rank == "subfamily" || taxon.rank == "genus" || taxon.rank == "species" {
+        if let Some(ref sf) = taxon.subfamily {
+            conditions.push("sightings.subfamily = ?".to_string());
+            params.push(sf);
         }
     }
 
@@ -212,6 +219,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Corvidae"),
+            None,
             Some("Cyanocitta"),
             Some("cristata"),
             "Blue Jay",
@@ -253,6 +261,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Turdidae"),
+            None,
             Some("Turdus"),
             Some("migratorius"),
             "American Robin",
@@ -278,6 +287,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Turdidae"),
+            None,
             Some("Turdus"),
             Some("migratorius"),
             "American Robin",
@@ -306,6 +316,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Corvidae"),
+            None,
             Some("Cyanocitta"),
             Some("cristata"),
             "Blue Jay",
@@ -323,5 +334,110 @@ mod tests {
         let results = get_trips_by_taxon(&conn, &taxon).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].name, "Morning Walk");
+    }
+
+    #[test]
+    fn test_get_trips_by_subfamily_taxon() {
+        let conn = setup_test_db();
+
+        use crate::core::taxon::create_taxon;
+        use crate::core::sighting::create_sighting;
+
+        // Create subfamily taxon
+        let subfamily_id = create_taxon(
+            &conn,
+            "subfamily",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            None,
+            None,
+            "Corvinae",
+        ).unwrap();
+
+        // Create species within that subfamily
+        let species_id = create_taxon(
+            &conn,
+            "species",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            Some("Corvus"),
+            Some("corax"),
+            "Common Raven",
+        ).unwrap();
+
+        // Create trips
+        let trip1 = create_trip(&conn, "Trip 1", Some("2025-01-15"), None, None).unwrap();
+        let trip2 = create_trip(&conn, "Trip 2", Some("2025-01-20"), None, None).unwrap();
+        let trip3 = create_trip(&conn, "Trip 3", Some("2025-01-25"), None, None).unwrap();
+
+        // Create sightings: trip1 has subfamily sighting, trip2 has species sighting, trip3 has neither
+        create_sighting(&conn, Some(trip1), subfamily_id, None, None, None, None).unwrap();
+        create_sighting(&conn, Some(trip2), species_id, None, None, None, None).unwrap();
+
+        // Query by subfamily should return both trip1 and trip2
+        let subfamily_taxon = crate::core::taxon::get_taxon_by_id(&conn, subfamily_id).unwrap();
+        let results = get_trips_by_taxon(&conn, &subfamily_taxon).unwrap();
+        assert_eq!(results.len(), 2);
+
+        // Verify correct trips returned
+        let trip_names: Vec<String> = results.iter().map(|t| t.name.clone()).collect();
+        assert!(trip_names.contains(&"Trip 1".to_string()));
+        assert!(trip_names.contains(&"Trip 2".to_string()));
+    }
+
+    #[test]
+    fn test_get_trips_by_family_includes_subfamily_sightings() {
+        let conn = setup_test_db();
+
+        use crate::core::taxon::create_taxon;
+        use crate::core::sighting::create_sighting;
+
+        // Create family taxon
+        let family_id = create_taxon(
+            &conn,
+            "family",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            None,
+            None,
+            None,
+            "Corvidae",
+        ).unwrap();
+
+        // Create subfamily within that family
+        let subfamily_id = create_taxon(
+            &conn,
+            "subfamily",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            None,
+            None,
+            "Corvinae",
+        ).unwrap();
+
+        // Create trip with subfamily sighting
+        let trip_id = create_trip(&conn, "Corvid Trip", Some("2025-01-15"), None, None).unwrap();
+        create_sighting(&conn, Some(trip_id), subfamily_id, None, None, None, None).unwrap();
+
+        // Query by family should return trip (family includes its subfamilies)
+        let family_taxon = crate::core::taxon::get_taxon_by_id(&conn, family_id).unwrap();
+        let results = get_trips_by_taxon(&conn, &family_taxon).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "Corvid Trip");
     }
 }

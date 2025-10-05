@@ -6,12 +6,13 @@ PRAGMA foreign_keys = ON;
 -- ---------- taxa ----------
 CREATE TABLE IF NOT EXISTS taxa (
     id INTEGER PRIMARY KEY,
-    rank TEXT NOT NULL CHECK(rank IN ('kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species')),
+    rank TEXT NOT NULL CHECK(rank IN ('kingdom', 'phylum', 'class', 'order', 'family', 'subfamily', 'genus', 'species')),
     kingdom TEXT NOT NULL,
     phylum TEXT,
     class TEXT,
     "order" TEXT,
     family TEXT,
+    subfamily TEXT,
     genus TEXT,
     species_epithet TEXT,
     common_name TEXT,
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS taxa (
         class,
         "order",
         family,
+        subfamily,
         genus,
         species_epithet
     )
@@ -45,6 +47,7 @@ CREATE TABLE IF NOT EXISTS sightings (
     class TEXT,
     "order" TEXT,
     family TEXT,
+    subfamily TEXT,
     genus TEXT,
     species_epithet TEXT,
     common_name TEXT,
@@ -68,6 +71,8 @@ CREATE INDEX IF NOT EXISTS idx_taxa_order ON taxa("order");
 
 CREATE INDEX IF NOT EXISTS idx_taxa_family ON taxa(family);
 
+CREATE INDEX IF NOT EXISTS idx_taxa_subfamily ON taxa(subfamily);
+
 CREATE INDEX IF NOT EXISTS idx_taxa_genus ON taxa(genus);
 
 CREATE INDEX IF NOT EXISTS idx_taxa_species_epithet ON taxa(species_epithet);
@@ -89,6 +94,8 @@ CREATE INDEX IF NOT EXISTS idx_sightings_class ON sightings(class);
 CREATE INDEX IF NOT EXISTS idx_sightings_order ON sightings("order");
 
 CREATE INDEX IF NOT EXISTS idx_sightings_family ON sightings(family);
+
+CREATE INDEX IF NOT EXISTS idx_sightings_subfamily ON sightings(subfamily);
 
 CREATE INDEX IF NOT EXISTS idx_sightings_genus ON sightings(genus);
 

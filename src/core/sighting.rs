@@ -14,13 +14,14 @@ pub fn create_sighting(
 ) -> Result<i64> {
     // Look up the taxon to get taxonomic fields
     let taxon_sql = r#"
-        SELECT kingdom, phylum, class, "order", family, genus, species_epithet, common_name
+        SELECT kingdom, phylum, class, "order", family, subfamily, genus, species_epithet, common_name
         FROM taxa
         WHERE id = ?1
     "#;
 
-    let (kingdom, phylum, class, order, family, genus, species_epithet, common_name): (
+    let (kingdom, phylum, class, order, family, subfamily, genus, species_epithet, common_name): (
         String,
+        Option<String>,
         Option<String>,
         Option<String>,
         Option<String>,
@@ -39,6 +40,7 @@ pub fn create_sighting(
                 row.get(5)?,
                 row.get(6)?,
                 row.get(7)?,
+                row.get(8)?,
             ))
         })
         .context("Failed to fetch taxon for sighting")?;
@@ -46,10 +48,10 @@ pub fn create_sighting(
     // Insert sighting with duplicated taxonomic fields
     let sql = r#"
         INSERT INTO sightings (
-            trip_id, taxon_id, kingdom, phylum, class, "order", family,
+            trip_id, taxon_id, kingdom, phylum, class, "order", family, subfamily,
             genus, species_epithet, common_name, notes, media_path, date, location
         )
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
     "#;
 
     conn.execute(
@@ -62,6 +64,7 @@ pub fn create_sighting(
             class,
             order,
             family,
+            subfamily,
             genus,
             species_epithet,
             common_name,
@@ -80,7 +83,7 @@ pub fn create_sighting(
 /// Get a sighting by ID
 pub fn get_sighting_by_id(conn: &Connection, id: i64) -> Result<Sighting> {
     let sql = r#"
-        SELECT id, trip_id, taxon_id, kingdom, phylum, class, "order", family,
+        SELECT id, trip_id, taxon_id, kingdom, phylum, class, "order", family, subfamily,
                genus, species_epithet, common_name, notes, media_path, date, location
         FROM sightings
         WHERE id = ?1
@@ -96,13 +99,14 @@ pub fn get_sighting_by_id(conn: &Connection, id: i64) -> Result<Sighting> {
             class: row.get(5)?,
             order: row.get(6)?,
             family: row.get(7)?,
-            genus: row.get(8)?,
-            species_epithet: row.get(9)?,
-            common_name: row.get(10)?,
-            notes: row.get(11)?,
-            media_path: row.get(12)?,
-            date: row.get(13)?,
-            location: row.get(14)?,
+            subfamily: row.get(8)?,
+            genus: row.get(9)?,
+            species_epithet: row.get(10)?,
+            common_name: row.get(11)?,
+            notes: row.get(12)?,
+            media_path: row.get(13)?,
+            date: row.get(14)?,
+            location: row.get(15)?,
         })
     }).context("Failed to fetch sighting")?;
 
@@ -138,17 +142,24 @@ pub fn get_sightings_by_taxon(conn: &Connection, taxon: &crate::models::Taxon) -
         }
     }
 
-    if taxon.rank == "order" || taxon.rank == "family" || taxon.rank == "genus" || taxon.rank == "species" {
+    if taxon.rank == "order" || taxon.rank == "family" || taxon.rank == "subfamily" || taxon.rank == "genus" || taxon.rank == "species" {
         if let Some(ref o) = taxon.order {
             conditions.push("\"order\" = ?".to_string());
             params.push(o);
         }
     }
 
-    if taxon.rank == "family" || taxon.rank == "genus" || taxon.rank == "species" {
+    if taxon.rank == "family" || taxon.rank == "subfamily" || taxon.rank == "genus" || taxon.rank == "species" {
         if let Some(ref f) = taxon.family {
             conditions.push("family = ?".to_string());
             params.push(f);
+        }
+    }
+
+    if taxon.rank == "subfamily" || taxon.rank == "genus" || taxon.rank == "species" {
+        if let Some(ref sf) = taxon.subfamily {
+            conditions.push("subfamily = ?".to_string());
+            params.push(sf);
         }
     }
 
@@ -169,7 +180,7 @@ pub fn get_sightings_by_taxon(conn: &Connection, taxon: &crate::models::Taxon) -
     let where_clause = conditions.join(" AND ");
     let sql = format!(
         r#"
-        SELECT id, trip_id, taxon_id, kingdom, phylum, class, "order", family,
+        SELECT id, trip_id, taxon_id, kingdom, phylum, class, "order", family, subfamily,
                genus, species_epithet, common_name, notes, media_path, date, location
         FROM sightings
         WHERE {}
@@ -191,13 +202,14 @@ pub fn get_sightings_by_taxon(conn: &Connection, taxon: &crate::models::Taxon) -
             class: row.get(5)?,
             order: row.get(6)?,
             family: row.get(7)?,
-            genus: row.get(8)?,
-            species_epithet: row.get(9)?,
-            common_name: row.get(10)?,
-            notes: row.get(11)?,
-            media_path: row.get(12)?,
-            date: row.get(13)?,
-            location: row.get(14)?,
+            subfamily: row.get(8)?,
+            genus: row.get(9)?,
+            species_epithet: row.get(10)?,
+            common_name: row.get(11)?,
+            notes: row.get(12)?,
+            media_path: row.get(13)?,
+            date: row.get(14)?,
+            location: row.get(15)?,
         })
     }).context("Failed to execute get sightings by taxon query")?;
 
@@ -209,7 +221,7 @@ pub fn get_sightings_by_taxon(conn: &Connection, taxon: &crate::models::Taxon) -
 /// Get all sightings from a specific trip
 pub fn get_sightings_by_trip_id(conn: &Connection, trip_id: i64) -> Result<Vec<Sighting>> {
     let sql = r#"
-        SELECT id, trip_id, taxon_id, kingdom, phylum, class, "order", family,
+        SELECT id, trip_id, taxon_id, kingdom, phylum, class, "order", family, subfamily,
                genus, species_epithet, common_name, notes, media_path, date, location
         FROM sightings
         WHERE trip_id = ?1
@@ -229,13 +241,14 @@ pub fn get_sightings_by_trip_id(conn: &Connection, trip_id: i64) -> Result<Vec<S
             class: row.get(5)?,
             order: row.get(6)?,
             family: row.get(7)?,
-            genus: row.get(8)?,
-            species_epithet: row.get(9)?,
-            common_name: row.get(10)?,
-            notes: row.get(11)?,
-            media_path: row.get(12)?,
-            date: row.get(13)?,
-            location: row.get(14)?,
+            subfamily: row.get(8)?,
+            genus: row.get(9)?,
+            species_epithet: row.get(10)?,
+            common_name: row.get(11)?,
+            notes: row.get(12)?,
+            media_path: row.get(13)?,
+            date: row.get(14)?,
+            location: row.get(15)?,
         })
     }).context("Failed to execute get sightings by trip query")?;
 
@@ -273,6 +286,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Turdidae"),
+            None,
             Some("Turdus"),
             Some("migratorius"),
             "American Robin",
@@ -315,6 +329,7 @@ mod tests {
             Some("Corvidae"),
             None,
             None,
+            None,
             "Crow Family",
         ).unwrap();
 
@@ -348,6 +363,7 @@ mod tests {
             Some("Aves"),
             Some("Accipitriformes"),
             Some("Accipitridae"),
+            None,
             Some("Buteo"),
             None,
             "Buteo Hawks",
@@ -397,6 +413,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Testidae"),
+            None,
             Some("Test"),
             Some("temp"),
             "Test Bird",
@@ -422,6 +439,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Turdidae"),
+            None,
             Some("Turdus"),
             Some("migratorius"),
             "American Robin",
@@ -460,6 +478,7 @@ mod tests {
             Some("Aves"),
             Some("Passeriformes"),
             Some("Turdidae"),
+            None,
             Some("Turdus"),
             Some("migratorius"),
             "American Robin",
@@ -477,8 +496,8 @@ mod tests {
 
         let trip_id = create_trip(&conn, "Morning Walk", Some("2025-01-15"), Some("Park"), None).unwrap();
 
-        let taxon1 = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
-        let taxon2 = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Accipitriformes"), Some("Accipitridae"), Some("Buteo"), Some("jamaicensis"), "Red-tailed Hawk").unwrap();
+        let taxon1 = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), None, Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
+        let taxon2 = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Accipitriformes"), Some("Accipitridae"), None, Some("Buteo"), Some("jamaicensis"), "Red-tailed Hawk").unwrap();
 
         // Create 2 sightings for the trip
         create_sighting(&conn, Some(trip_id), taxon1, None, None, None, None).unwrap();
@@ -502,5 +521,173 @@ mod tests {
         // No sightings for this trip
         let results = get_sightings_by_trip_id(&conn, trip_id).unwrap();
         assert_eq!(results.len(), 0);
+    }
+
+    #[test]
+    fn test_create_sighting_with_subfamily_level_taxon() {
+        let conn = setup_test_db();
+
+        // Create a subfamily-level taxon
+        let taxon_id = create_taxon(
+            &conn,
+            "subfamily",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            None,
+            None,
+            "Corvinae Subfamily",
+        ).unwrap();
+
+        let sighting_id = create_sighting(
+            &conn,
+            None,
+            taxon_id,
+            Some("Corvid at subfamily level"),
+            None,
+            None,
+            None,
+        ).unwrap();
+
+        let sighting = get_sighting_by_id(&conn, sighting_id).unwrap();
+        assert_eq!(sighting.family, Some("Corvidae".to_string()));
+        assert_eq!(sighting.subfamily, Some("Corvinae".to_string()));
+        assert_eq!(sighting.genus, None);
+        assert_eq!(sighting.species_epithet, None);
+        assert_eq!(sighting.common_name, "Corvinae Subfamily");
+    }
+
+    #[test]
+    fn test_get_sightings_by_taxon_subfamily_rank() {
+        let conn = setup_test_db();
+
+        // Create subfamily-level taxon
+        let subfamily_id = create_taxon(
+            &conn,
+            "subfamily",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            None,
+            None,
+            "Corvinae",
+        ).unwrap();
+
+        // Create species within that subfamily
+        let species_id = create_taxon(
+            &conn,
+            "species",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            Some("Corvus"),
+            Some("corax"),
+            "Common Raven",
+        ).unwrap();
+
+        // Create sightings for both
+        create_sighting(&conn, None, subfamily_id, None, None, Some("2025-01-10"), None).unwrap();
+        create_sighting(&conn, None, species_id, None, None, Some("2025-01-15"), None).unwrap();
+        create_sighting(&conn, None, species_id, None, None, Some("2025-01-20"), None).unwrap();
+
+        // Query by subfamily should return all 3 sightings
+        let subfamily_taxon = get_taxon_by_id(&conn, subfamily_id).unwrap();
+        let results = get_sightings_by_taxon(&conn, &subfamily_taxon).unwrap();
+        assert_eq!(results.len(), 3);
+
+        // All should have Corvinae subfamily
+        for sighting in &results {
+            assert_eq!(sighting.subfamily, Some("Corvinae".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_get_sightings_by_taxon_family_includes_subfamily_descendants() {
+        let conn = setup_test_db();
+
+        // Create family-level taxon
+        let family_id = create_taxon(
+            &conn,
+            "family",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            None,
+            None,
+            None,
+            "Corvidae Family",
+        ).unwrap();
+
+        // Create subfamily within family
+        let subfamily_id = create_taxon(
+            &conn,
+            "subfamily",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            None,
+            None,
+            "Corvinae",
+        ).unwrap();
+
+        // Create species with subfamily
+        let species_with_subfamily_id = create_taxon(
+            &conn,
+            "species",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            Some("Corvus"),
+            Some("corax"),
+            "Common Raven",
+        ).unwrap();
+
+        // Create species without subfamily (different subfamily or none)
+        let species_no_subfamily_id = create_taxon(
+            &conn,
+            "species",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            None,
+            Some("Cyanocitta"),
+            Some("cristata"),
+            "Blue Jay",
+        ).unwrap();
+
+        // Create sightings for all
+        create_sighting(&conn, None, family_id, None, None, None, None).unwrap();
+        create_sighting(&conn, None, subfamily_id, None, None, None, None).unwrap();
+        create_sighting(&conn, None, species_with_subfamily_id, None, None, None, None).unwrap();
+        create_sighting(&conn, None, species_no_subfamily_id, None, None, None, None).unwrap();
+
+        // Query by family should return ALL 4 sightings (family includes all subfamilies and species)
+        let family_taxon = get_taxon_by_id(&conn, family_id).unwrap();
+        let results = get_sightings_by_taxon(&conn, &family_taxon).unwrap();
+        assert_eq!(results.len(), 4);
+
+        // All should have Corvidae family
+        for sighting in &results {
+            assert_eq!(sighting.family, Some("Corvidae".to_string()));
+        }
     }
 }

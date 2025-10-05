@@ -7,6 +7,7 @@ INSERT
         class,
         "order",
         family,
+        subfamily,
         genus,
         species_epithet,
         common_name
@@ -19,6 +20,7 @@ VALUES
         'Aves',
         'Passeriformes',
         'Corvidae',
+        NULL,
         'Cyanocitta',
         'cristata',
         'Blue Jay'
@@ -32,6 +34,7 @@ INSERT
         class,
         "order",
         family,
+        subfamily,
         genus,
         species_epithet,
         common_name
@@ -44,6 +47,7 @@ VALUES
         'Aves',
         'Accipitriformes',
         'Accipitridae',
+        NULL,
         'Buteo',
         'jamaicensis',
         'Red-tailed Hawk'
@@ -57,6 +61,7 @@ INSERT
         class,
         "order",
         family,
+        subfamily,
         genus,
         species_epithet,
         common_name
@@ -69,6 +74,7 @@ VALUES
         'Mammalia',
         'Primates',
         'Hominidae',
+        NULL,
         'Homo',
         'sapiens',
         'Human'
@@ -83,6 +89,7 @@ INSERT
         class,
         "order",
         family,
+        subfamily,
         genus,
         species_epithet,
         common_name
@@ -95,6 +102,7 @@ VALUES
         'Aves',
         'Passeriformes',
         'Corvidae',
+        NULL,
         NULL,
         NULL,
         'Crow Family'

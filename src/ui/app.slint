@@ -56,6 +56,7 @@ export struct TaxonDetail {
     class: string,
     order: string,
     family: string,
+    subfamily: string,
     genus: string,
     species-epithet: string,
 }
@@ -554,6 +555,11 @@ component TaxonDetailView inherits Rectangle {
                     if taxon.family != "": FieldRow {
                         label: "FAMILY";
                         value: taxon.family;
+                    }
+
+                    if taxon.subfamily != "": FieldRow {
+                        label: "SUBFAMILY";
+                        value: taxon.subfamily;
                     }
 
                     if taxon.genus != "": FieldRow {

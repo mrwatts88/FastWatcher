@@ -300,6 +300,7 @@ fn fetch_taxon_detail(ui: &AppWindow, id: i32) {
         class: SharedString::from(taxon.class.clone().unwrap_or_default()),
         order: SharedString::from(taxon.order.clone().unwrap_or_default()),
         family: SharedString::from(taxon.family.clone().unwrap_or_default()),
+        subfamily: SharedString::from(taxon.subfamily.clone().unwrap_or_default()),
         genus: SharedString::from(taxon.genus.clone().unwrap_or_default()),
         species_epithet: SharedString::from(taxon.species_epithet.clone().unwrap_or_default()),
     };

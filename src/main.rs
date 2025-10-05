@@ -123,6 +123,7 @@ fn main() -> Result<()> {
             class,
             order,
             family,
+            subfamily,
             genus,
             species_epithet,
         } => {
@@ -135,6 +136,7 @@ fn main() -> Result<()> {
                 class.as_deref(),
                 order.as_deref(),
                 family.as_deref(),
+                subfamily.as_deref(),
                 genus.as_deref(),
                 species_epithet.as_deref(),
                 &common_name,

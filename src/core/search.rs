@@ -10,13 +10,14 @@ pub fn run_search_sightings(conn: &Connection, query: &str) -> Result<Vec<Sighti
     }
 
     let sql = r#"
-        SELECT id, trip_id, taxon_id, kingdom, phylum, class, "order", family, genus, species_epithet, common_name, notes, media_path, date, location
+        SELECT id, trip_id, taxon_id, kingdom, phylum, class, "order", family, subfamily, genus, species_epithet, common_name, notes, media_path, date, location
         FROM sightings
         WHERE kingdom LIKE ?1
             OR phylum LIKE ?1
             OR class LIKE ?1
             OR "order" LIKE ?1
             OR family LIKE ?1
+            OR subfamily LIKE ?1
             OR genus LIKE ?1
             OR species_epithet LIKE ?1
             OR common_name LIKE ?1
@@ -37,13 +38,14 @@ pub fn run_search_sightings(conn: &Connection, query: &str) -> Result<Vec<Sighti
             class: row.get(5)?,
             order: row.get(6)?,
             family: row.get(7)?,
-            genus: row.get(8)?,
-            species_epithet: row.get(9)?,
-            common_name: row.get(10)?,
-            notes: row.get(11)?,
-            media_path: row.get(12)?,
-            date: row.get(13)?,
-            location: row.get(14)?,
+            subfamily: row.get(8)?,
+            genus: row.get(9)?,
+            species_epithet: row.get(10)?,
+            common_name: row.get(11)?,
+            notes: row.get(12)?,
+            media_path: row.get(13)?,
+            date: row.get(14)?,
+            location: row.get(15)?,
         })
     }).context("Failed to execute sightings search")?;
 
@@ -71,6 +73,7 @@ pub fn run_search_trips(conn: &Connection, query: &str) -> Result<Vec<Trip>> {
                 sightings.class LIKE ?1 OR
                 sightings."order" LIKE ?1 OR
                 sightings.family LIKE ?1 OR
+                sightings.subfamily LIKE ?1 OR
                 sightings.genus LIKE ?1 OR
                 sightings.species_epithet LIKE ?1 OR
                 sightings.common_name LIKE ?1
@@ -103,13 +106,14 @@ pub fn run_search_taxa(conn: &Connection, query: &str) -> Result<Vec<Taxon>> {
     }
 
     let sql = r#"
-        SELECT id, rank, kingdom, phylum, class, "order", family, genus, species_epithet, common_name
+        SELECT id, rank, kingdom, phylum, class, "order", family, subfamily, genus, species_epithet, common_name
         FROM taxa
         WHERE kingdom LIKE ?1
            OR phylum LIKE ?1
            OR class LIKE ?1
            OR "order" LIKE ?1
            OR family LIKE ?1
+           OR subfamily LIKE ?1
            OR genus LIKE ?1
            OR species_epithet LIKE ?1
            OR common_name LIKE ?1
@@ -127,9 +131,10 @@ pub fn run_search_taxa(conn: &Connection, query: &str) -> Result<Vec<Taxon>> {
             class: row.get(4)?,
             order: row.get(5)?,
             family: row.get(6)?,
-            genus: row.get(7)?,
-            species_epithet: row.get(8)?,
-            common_name: row.get(9)?,
+            subfamily: row.get(7)?,
+            genus: row.get(8)?,
+            species_epithet: row.get(9)?,
+            common_name: row.get(10)?,
         })
     }).context("Failed to execute taxa search")?;
 
@@ -159,7 +164,7 @@ mod tests {
     fn test_search_taxa_by_common_name() {
         let conn = setup_test_db();
 
-        create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
+        create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), None, Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
 
         let results = run_search_taxa(&conn, "Robin").unwrap();
         assert_eq!(results.len(), 1);
@@ -170,7 +175,7 @@ mod tests {
     fn test_search_taxa_by_family() {
         let conn = setup_test_db();
 
-        create_taxon(&conn, "family", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Corvidae"), None, None, "Crow Family").unwrap();
+        create_taxon(&conn, "family", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Corvidae"), None, None, None, "Crow Family").unwrap();
 
         let results = run_search_taxa(&conn, "Corvidae").unwrap();
         assert_eq!(results.len(), 1);
@@ -182,7 +187,7 @@ mod tests {
     fn test_search_sightings_by_species() {
         let conn = setup_test_db();
 
-        let taxon_id = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
+        let taxon_id = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), None, Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
         create_sighting(&conn, None, taxon_id, Some("Test note"), None, None, None).unwrap();
 
         let results = run_search_sightings(&conn, "Robin").unwrap();
@@ -194,7 +199,7 @@ mod tests {
     fn test_search_sightings_by_family() {
         let conn = setup_test_db();
 
-        let taxon_id = create_taxon(&conn, "family", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Corvidae"), None, None, "Crow Family").unwrap();
+        let taxon_id = create_taxon(&conn, "family", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Corvidae"), None, None, None, "Crow Family").unwrap();
         create_sighting(&conn, None, taxon_id, None, None, None, None).unwrap();
 
         let results = run_search_sightings(&conn, "Corvidae").unwrap();
@@ -206,7 +211,7 @@ mod tests {
     fn test_search_sightings_by_location() {
         let conn = setup_test_db();
 
-        let taxon_id = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
+        let taxon_id = create_taxon(&conn, "species", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Turdidae"), None, Some("Turdus"), Some("migratorius"), "American Robin").unwrap();
         create_sighting(&conn, None, taxon_id, None, None, None, Some("Near the pond")).unwrap();
 
         let results = run_search_sightings(&conn, "pond").unwrap();
@@ -241,7 +246,7 @@ mod tests {
         let conn = setup_test_db();
 
         let trip_id = create_trip(&conn, "Birdwatching", None, None, None).unwrap();
-        let taxon_id = create_taxon(&conn, "family", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Corvidae"), None, None, "Crow Family").unwrap();
+        let taxon_id = create_taxon(&conn, "family", "Animalia", Some("Chordata"), Some("Aves"), Some("Passeriformes"), Some("Corvidae"), None, None, None, "Crow Family").unwrap();
         create_sighting(&conn, Some(trip_id), taxon_id, None, None, None, None).unwrap();
 
         let results = run_search_trips(&conn, "Corvidae").unwrap();
@@ -258,5 +263,83 @@ mod tests {
 
         let result = run_search_sightings(&conn, "   ");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_search_taxa_by_subfamily() {
+        let conn = setup_test_db();
+
+        // Create subfamily-level taxon
+        create_taxon(
+            &conn,
+            "subfamily",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            None,
+            None,
+            "Corvinae Subfamily",
+        ).unwrap();
+
+        let results = run_search_taxa(&conn, "Corvinae").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].rank, "subfamily");
+        assert_eq!(results[0].subfamily, Some("Corvinae".to_string()));
+    }
+
+    #[test]
+    fn test_search_sightings_by_subfamily() {
+        let conn = setup_test_db();
+
+        // Create subfamily-level taxon
+        let taxon_id = create_taxon(
+            &conn,
+            "subfamily",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            None,
+            None,
+            "Corvinae Subfamily",
+        ).unwrap();
+
+        create_sighting(&conn, None, taxon_id, None, None, None, None).unwrap();
+
+        let results = run_search_sightings(&conn, "Corvinae").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].subfamily, Some("Corvinae".to_string()));
+    }
+
+    #[test]
+    fn test_search_trips_by_subfamily() {
+        let conn = setup_test_db();
+
+        let trip_id = create_trip(&conn, "Corvid Watch", None, None, None).unwrap();
+
+        let taxon_id = create_taxon(
+            &conn,
+            "subfamily",
+            "Animalia",
+            Some("Chordata"),
+            Some("Aves"),
+            Some("Passeriformes"),
+            Some("Corvidae"),
+            Some("Corvinae"),
+            None,
+            None,
+            "Corvinae",
+        ).unwrap();
+
+        create_sighting(&conn, Some(trip_id), taxon_id, None, None, None, None).unwrap();
+
+        let results = run_search_trips(&conn, "Corvinae").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "Corvid Watch");
     }
 }
