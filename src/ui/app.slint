@@ -11,23 +11,275 @@ global Colors {
     out property <color> border: #c0c1bd;
 }
 
+// Entity structs for data
+export struct SightingItem {
+    id: int,
+    common-name: string,
+    date: string,
+    location: string,
+}
+
+export struct TaxonItem {
+    id: int,
+    rank: string,
+    common-name: string,
+    taxonomy: string,
+}
+
+export struct TripItem {
+    id: int,
+    name: string,
+    date: string,
+    location: string,
+}
+
+// Sighting card component
+component SightingCard inherits Rectangle {
+    in property <SightingItem> item;
+    callback clicked();
+
+    height: 70px;
+    background: Colors.white;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: Colors.border;
+
+    states [
+        hover when touch.has-hover: {
+            background: #f5f5f5;
+        }
+    ]
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 8px;
+
+        VerticalLayout {
+            spacing: 4px;
+
+            Text {
+                text: item.common-name;
+                font-size: 15px;
+                font-weight: 600;
+                color: Colors.text;
+            }
+
+            if item.date != "" || item.location != "": Text {
+                text: (item.date != "" ? item.date : "") + (item.date != "" && item.location != "" ? " • " : "") + (item.location != "" ? item.location : "");
+                font-size: 12px;
+                color: Colors.accent-1;
+            }
+        }
+    }
+}
+
+// Taxon card component
+component TaxonCard inherits Rectangle {
+    in property <TaxonItem> item;
+    callback clicked();
+
+    height: 70px;
+    background: Colors.white;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: Colors.border;
+
+    states [
+        hover when touch.has-hover: {
+            background: #f5f5f5;
+        }
+    ]
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 8px;
+
+        VerticalLayout {
+            spacing: 4px;
+
+            HorizontalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: item.common-name;
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: Colors.text;
+                }
+
+                Rectangle {
+                    width: 50px;
+                    height: 18px;
+                    background: Colors.accent-1;
+                    border-radius: 3px;
+
+                    Text {
+                        text: item.rank;
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: Colors.white;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            Text {
+                text: item.taxonomy;
+                font-size: 12px;
+                color: Colors.accent-1;
+            }
+        }
+    }
+}
+
+// Trip card component
+component TripCard inherits Rectangle {
+    in property <TripItem> item;
+    callback clicked();
+
+    height: 70px;
+    background: Colors.white;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: Colors.border;
+
+    states [
+        hover when touch.has-hover: {
+            background: #f5f5f5;
+        }
+    ]
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 8px;
+
+        VerticalLayout {
+            spacing: 4px;
+
+            Text {
+                text: item.name;
+                font-size: 15px;
+                font-weight: 600;
+                color: Colors.text;
+            }
+
+            if item.date != "" || item.location != "": Text {
+                text: (item.date != "" ? item.date : "") + (item.date != "" && item.location != "" ? " • " : "") + (item.location != "" ? item.location : "");
+                font-size: 12px;
+                color: Colors.accent-1;
+            }
+        }
+    }
+}
+
+// Detail view component
+component DetailView inherits Rectangle {
+    in property <string> entity-type;
+    in property <int> entity-id;
+    callback back();
+
+    background: Colors.bg;
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 20px;
+
+        // Back button
+        Rectangle {
+            height: 40px;
+            width: 100px;
+            background: transparent;
+
+            TouchArea {
+                clicked => { root.back(); }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "←";
+                    font-size: 20px;
+                    color: Colors.accent-2;
+                }
+
+                Text {
+                    text: "Back";
+                    font-size: 16px;
+                    color: Colors.accent-2;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Detail content
+        VerticalLayout {
+            spacing: 12px;
+
+            Text {
+                text: entity-type + " Detail";
+                font-size: 28px;
+                font-weight: 700;
+                color: Colors.text;
+            }
+
+            Text {
+                text: "ID: " + entity-id;
+                font-size: 18px;
+                color: Colors.accent-1;
+            }
+
+            Text {
+                text: "(Detailed view coming soon...)";
+                font-size: 14px;
+                color: Colors.accent-1;
+            }
+        }
+    }
+}
+
+// Main app window
 export component AppWindow inherits Window {
-    // Properties
+    // View state
+    in-out property <string> current-view: "search";
+    in-out property <int> detail-entity-id: 0;
+
+    // Search properties
     in-out property <string> search-text;
     in property <bool> is-searching: search-text.character-count >= 3;
-    in-out property <int> sightings-count: 0;
-    in-out property <int> taxa-count: 0;
-    in-out property <int> trips-count: 0;
+
+    // Model properties for results
+    in-out property <[SightingItem]> sightings-model;
+    in-out property <[TaxonItem]> taxa-model;
+    in-out property <[TripItem]> trips-model;
 
     // Callbacks
     callback search-changed(string);
+    callback view-sighting-detail(int);
+    callback view-taxon-detail(int);
+    callback view-trip-detail(int);
+    callback back-to-search();
 
     title: "Fast Watcher";
     background: Colors.bg;
-    preferred-width: 800px;
-    preferred-height: 600px;
+    min-width: 800px;
+    min-height: 600px;
 
-    VerticalLayout {
+    // Search view
+    if current-view == "search": VerticalLayout {
         padding: 20px;
         spacing: 16px;
 
@@ -56,60 +308,46 @@ export component AppWindow inherits Window {
             }
         }
 
-        // Results area (only show if searching)
+        // Results area
         if root.is-searching: Flickable {
-            VerticalLayout {
+            viewport-height: content-layout.preferred-height;
+
+            content-layout := VerticalLayout {
                 spacing: 24px;
 
                 // Sightings section
-                VerticalLayout {
+                if root.sightings-model.length > 0: VerticalLayout {
                     spacing: 8px;
 
-                    // Section header
-                    HorizontalLayout {
-                        height: 20px;
-                        Text {
-                            text: "Sightings (" + root.sightings-count + ")";
-                            font-size: 14px;
-                            font-weight: 600;
-                            color: Colors.text;
-                        }
+                    Text {
+                        text: "Sightings (" + root.sightings-model.length + ")";
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: Colors.text;
                     }
 
-                    // Divider line
                     Rectangle {
                         height: 1px;
                         background: Colors.accent-1;
                     }
 
-                    // Placeholder for results
-                    Rectangle {
-                        height: 40px;
-                        background: Colors.white;
-                        border-radius: 4px;
-
-                        Text {
-                            text: "Results will appear here...";
-                            font-size: 12px;
-                            color: Colors.accent-1;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                    for item in root.sightings-model: SightingCard {
+                        item: item;
+                        clicked => {
+                            root.view-sighting-detail(item.id);
                         }
                     }
                 }
 
                 // Taxa section
-                if root.taxa-count >= 0: VerticalLayout {
+                if root.taxa-model.length > 0: VerticalLayout {
                     spacing: 8px;
 
-                    HorizontalLayout {
-                        height: 20px;
-                        Text {
-                            text: "Taxa (" + root.taxa-count + ")";
-                            font-size: 14px;
-                            font-weight: 600;
-                            color: Colors.text;
-                        }
+                    Text {
+                        text: "Taxa (" + root.taxa-model.length + ")";
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: Colors.text;
                     }
 
                     Rectangle {
@@ -117,33 +355,23 @@ export component AppWindow inherits Window {
                         background: Colors.accent-1;
                     }
 
-                    Rectangle {
-                        height: 40px;
-                        background: Colors.white;
-                        border-radius: 4px;
-
-                        Text {
-                            text: "Results will appear here...";
-                            font-size: 12px;
-                            color: Colors.accent-1;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                    for item in root.taxa-model: TaxonCard {
+                        item: item;
+                        clicked => {
+                            root.view-taxon-detail(item.id);
                         }
                     }
                 }
 
                 // Trips section
-                if root.trips-count >= 0: VerticalLayout {
+                if root.trips-model.length > 0: VerticalLayout {
                     spacing: 8px;
 
-                    HorizontalLayout {
-                        height: 20px;
-                        Text {
-                            text: "Trips (" + root.trips-count + ")";
-                            font-size: 14px;
-                            font-weight: 600;
-                            color: Colors.text;
-                        }
+                    Text {
+                        text: "Trips (" + root.trips-model.length + ")";
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: Colors.text;
                     }
 
                     Rectangle {
@@ -151,24 +379,18 @@ export component AppWindow inherits Window {
                         background: Colors.accent-1;
                     }
 
-                    Rectangle {
-                        height: 40px;
-                        background: Colors.white;
-                        border-radius: 4px;
-
-                        Text {
-                            text: "Results will appear here...";
-                            font-size: 12px;
-                            color: Colors.accent-1;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                    for item in root.trips-model: TripCard {
+                        item: item;
+                        clicked => {
+                            root.view-trip-detail(item.id);
                         }
                     }
                 }
 
-                // Empty state when no results
-                if root.is-searching && root.sightings-count == 0 && root.taxa-count == 0 && root.trips-count == 0: VerticalLayout {
+                // Empty state
+                if root.sightings-model.length == 0 && root.taxa-model.length == 0 && root.trips-model.length == 0: VerticalLayout {
                     alignment: center;
+                    min-height: 200px;
 
                     Text {
                         text: "No results found";
@@ -180,7 +402,7 @@ export component AppWindow inherits Window {
             }
         }
 
-        // Welcome message when not searching
+        // Welcome message
         if !root.is-searching: VerticalLayout {
             alignment: center;
 
@@ -191,5 +413,24 @@ export component AppWindow inherits Window {
                 horizontal-alignment: center;
             }
         }
+    }
+
+    // Detail views
+    if current-view == "sighting-detail": DetailView {
+        entity-type: "Sighting";
+        entity-id: root.detail-entity-id;
+        back => { root.back-to-search(); }
+    }
+
+    if current-view == "taxon-detail": DetailView {
+        entity-type: "Taxon";
+        entity-id: root.detail-entity-id;
+        back => { root.back-to-search(); }
+    }
+
+    if current-view == "trip-detail": DetailView {
+        entity-type: "Trip";
+        entity-id: root.detail-entity-id;
+        back => { root.back-to-search(); }
     }
 }
