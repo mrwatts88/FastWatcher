@@ -7,3 +7,7 @@ edition = "2021"
 anyhow = "1.0.100"
 clap = { version = "4.5.48", features = ["derive"] }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
+slint = "1.9"
+
+[build-dependencies]
+slint-build = "1.9"

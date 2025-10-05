@@ -1,6 +1,7 @@
 mod cli;
 mod core;
 mod models;
+mod ui;
 
 use anyhow::Result;
 use clap::Parser;
@@ -12,6 +13,16 @@ use core::taxon::{create_taxon, delete_taxon, get_taxon_by_id};
 use core::trip::{create_trip, delete_trip, get_trip_by_id};
 
 fn main() -> Result<()> {
+    // Check if any CLI arguments were provided
+    let args: Vec<String> = std::env::args().collect();
+
+    // If no arguments (just the binary name), launch GUI
+    if args.len() == 1 {
+        ui::run_ui()?;
+        return Ok(());
+    }
+
+    // Otherwise, run CLI
     let cli = Cli::parse();
 
     match cli.command {
