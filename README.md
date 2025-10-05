@@ -35,11 +35,12 @@ Trip (0..1) ───< Sighting >─── (1) Taxon
 ```
 fast_watcher/
 ├── Cargo.toml
+├── build.rs             # Slint build script
 ├── init.sql             # Database schema
 ├── seed_*.sql           # Seed data files
 ├── src/
 │   ├── lib.rs           # Library interface for tests
-│   ├── main.rs          # CLI entrypoint
+│   ├── main.rs          # Entry point (GUI/CLI mode switcher)
 │   ├── cli/             # Argument parsing & command routing
 │   │   └── mod.rs
 │   ├── models/          # Data models
@@ -47,13 +48,16 @@ fast_watcher/
 │   │   ├── sighting.rs
 │   │   ├── taxon.rs
 │   │   └── trip.rs
-│   └── core/            # Core logic (with unit tests)
-│       ├── mod.rs
-│       ├── db.rs        # Database connection & utilities
-│       ├── search.rs    # Search functions
-│       ├── sighting.rs  # Sighting CRUD operations
-│       ├── taxon.rs     # Taxon CRUD operations
-│       └── trip.rs      # Trip CRUD operations
+│   ├── core/            # Core logic (with unit tests)
+│   │   ├── mod.rs
+│   │   ├── db.rs        # Database connection & utilities
+│   │   ├── search.rs    # Search functions
+│   │   ├── sighting.rs  # Sighting CRUD operations
+│   │   ├── taxon.rs     # Taxon CRUD operations
+│   │   └── trip.rs      # Trip CRUD operations
+│   └── ui/              # Slint GUI
+│       ├── mod.rs       # UI bridge (Rust ↔ Slint)
+│       └── app.slint    # UI markup & styling
 └── tests/
     └── integration_test.rs  # Full workflow integration tests
 ```
@@ -65,7 +69,7 @@ fast_watcher/
 - **Error Handling:** [anyhow](https://docs.rs/anyhow) with `.context()` for detailed error messages
 - **Database:** [rusqlite](https://docs.rs/rusqlite) (SQLite with WAL mode + foreign keys)
 - **Search:** LIKE queries (FTS5 planned for future)
-- **UI (future):** [Slint](https://slint.dev/) for a native desktop layer
+- **UI:** [Slint](https://slint.dev/) for native desktop interface
 
 ---
 
@@ -186,78 +190,103 @@ $ fast-watcher show-sighting 15
 - [x] Denormalized taxonomic data in sightings for fast search
 - [x] Partial taxonomic identification (family/genus/species ranks)
 - [x] Database initialization and seeding
-- [x] Comprehensive test suite (58 tests: unit + integration)
+- [x] Comprehensive test suite (42 tests: 32 unit + 10 integration)
 - [x] `cargo install --path .` for system-wide binary
 
-### 🚧 Phase 2 — Slint UI
+### ✅ Phase 2 — Slint UI (Completed)
 
-Build a native desktop UI with [Slint](https://slint.dev/) while keeping all core logic in Rust.
+Built a native desktop UI with [Slint](https://slint.dev/) featuring instant search and hierarchical navigation.
 
-#### Core Functions to Add
+#### Features Implemented
 
-**Search:**
+**Search Interface:**
+- Real-time search (no debounce) with 3-character minimum
+- Sectioned results display (Sightings, Taxa, Trips)
+- Click any result to navigate to detail page
+- Custom color scheme (#e0e1dd background, #1d1a05 text, #778da9/#17255a accents)
 
-- UI calls existing search functions separately for sectioned display
-- `run_search_sightings(query)` → Sightings section
-- `run_search_taxa(query)` → Taxa section
-- `run_search_trips(query)` → Trips section
+**Hierarchical Taxon Queries:**
+- [x] `get_sightings_by_taxon(&Taxon)` - Matches by taxonomic rank (e.g., family "Corvidae" shows all Blue Jay sightings)
+- [x] `get_sightings_by_trip_id(trip_id)` - All sightings from a trip
+- [x] `get_trips_by_taxon(&Taxon)` - All trips where taxon (or descendants) were seen
 
-**Related Entity Queries (3 functions, 6 relationships):**
+**Detail Pages:**
 
-- [x] `get_sightings_by_taxon_id(taxon_id)` → `Vec<Sighting>` - For taxon detail page → sightings list
-- [x] `get_sightings_by_trip_id(trip_id)` → `Vec<Sighting>` - For trip detail page → sightings list
-- [x] `get_trips_by_taxon_id(taxon_id)` → `Vec<Trip>` - For taxon detail page → trips list
-
-**Covered by existing functions + sighting denormalization:**
-
-- Sighting → Taxon: Use `get_taxon_by_id(sighting.taxon_id)` - For sighting detail page → taxon link
-- Sighting → Trip: Use `get_trip_by_id(sighting.trip_id)` if Some - For sighting detail page → trip link
-- Trip → Taxa: Use `get_sightings_by_trip_id()` (sightings contain denormalized taxonomy) - For trip detail page → taxa list
-
-#### UI Architecture
-
-**Search View:**
-
-- Single search box with unified results
-- Results list with type indicators (🐦 Sighting / 📋 Taxon / 🎒 Trip)
-- Click → route to appropriate detail view
-
-**Three Detail Views:**
-
-1. **Sighting Detail** (Primary)
-
-   - Full observation record (date, location, notes, media)
-   - Embedded taxonomy display (denormalized data)
-   - Optional links: "Part of: [Trip]" and "See all: [Taxon]"
+1. **Sighting Detail**
+   - Entity type label, common name, full taxonomy
+   - All metadata: date, location, notes, media path
+   - Related taxon link (always present)
+   - Related trip link (if sighting has trip)
 
 2. **Taxon Detail**
-
-   - Canonical taxonomy at specified rank
-   - List of all sightings of this taxon
-   - List of all trips where this taxon was seen
-   - Stats: total sightings, first/last seen, trip count
+   - Entity type label, common name, rank badge
+   - Complete taxonomy breakdown (kingdom → species)
+   - Related sightings list (includes all descendant taxa)
+   - Related trips list (all trips where this taxon was seen)
 
 3. **Trip Detail**
-   - Trip metadata (name, date, location, notes)
-   - List of all sightings from this trip
-   - Summary stats
+   - Entity type label, trip name
+   - Trip metadata: date, location, notes
+   - Related taxa list (distinct taxa from sightings)
+   - Related sightings list
 
-**Implementation Flow:**
+**Navigation:**
+- Back button on all detail pages
+- Click related entities to navigate between pages
+- Hierarchical queries ensure family-level taxa show species-level sightings
 
-```
-User types "blue" → Unified search → Results:
-  🐦 Sighting #15 - Blue Jay (2025-01-15)
-  📋 Taxon [species] - Blue Jay
-  🎒 Trip - Bluebird Trail Hike
+**UI Polish:**
+- Proper vertical alignment (no spacing issues with optional content)
+- Hover states on all clickable cards
+- Responsive flickable layouts for long content
 
-Click Sighting → Sighting Detail → Links to taxon/trip
-Click Taxon → Taxon Detail → Lists all sightings
-Click Trip → Trip Detail → Lists all sightings
-```
+### 🚧 Phase 3 — Full-Text Search
 
-### Phase 3 - Content Search
+**Blazing Fast Note Search:**
+- [ ] SQLite FTS5 (Full-Text Search) for instant note/description searching
+- [ ] Index all text fields: sighting notes, trip notes, taxon common names
+- [ ] Support advanced FTS5 queries:
+  - Phrase search: `"red tailed hawk"`
+  - Boolean operators: `hawk AND (red OR tail)`
+  - Prefix matching: `cor*` matches "corvid", "corvidae", "corn"
+  - Near operator: `NEAR(blue jay, 5)` - words within 5 tokens
+- [ ] Integrate FTS results into existing search UI
+- [ ] Highlight matching text snippets in results
+- [ ] Performance target: <10ms for any note search on 10,000+ sightings
 
-- [ ] SQLite FTS5 full-text search (future optimization)
+### 🚧 Phase 4 — Enhanced UI & Navigation
+
+**Navigation Stack:**
+- [ ] Implement proper navigation history stack
+  - Back button navigates to previous page (not just search)
+  - Example flow: Search → Taxon → Sighting → Trip → (back) → Sighting → (back) → Taxon
+- [ ] "Home" button always visible to return to search from any page
+- [ ] Breadcrumb trail showing current navigation path
+
+**Taxonomy Breadcrumb Navigation:**
+- [ ] Click any rank in taxonomy string to view that taxon's detail page
+  - Example: "Animalia / Chordata / Aves / **Passeriformes** / Corvidae / Cyanocitta / cristata"
+  - Click "Passeriformes" → view Order detail page with all related sightings/trips
+- [ ] Auto-create taxon entries for parent ranks if they don't exist
+
+**Paginated Lists:**
+- [ ] Limit related entity lists on detail pages (show first 5-10 items)
+- [ ] "See All" button to navigate to dedicated list page
+  - Example: Corvidae taxon page shows 6 sightings → "See All 24 Sightings"
+  - Dedicated page: "Corvidae - All Sightings" with full list
+- [ ] Apply to all detail/list combinations:
+  - Taxon → Sightings, Taxon → Trips
+  - Trip → Sightings, Trip → Taxa
+  - (Sighting pages already show single related entities)
+
+**Advanced Search Syntax:**
+- [ ] Type-specific search: `type:query`
+  - `sighting:hawk` - Search only sightings
+  - `taxon:corvidae` - Search only taxa
+  - `trip:ozark` - Search only trips
+- [ ] Date range filters: `date:2025-01-01..2025-12-31`
+- [ ] Location filters: `location:park`
+- [ ] Combined filters: `sighting:hawk date:2025 location:park`
 
 ---
 
@@ -284,18 +313,34 @@ Click Trip → Trip Detail → Lists all sightings
 cargo run -- init-db
 ```
 
-### Run locally
+### Run GUI (default)
 
 ```bash
+# Launch GUI with no arguments
+cargo run
+
+# Or after install:
+fast-watcher
+```
+
+### Run CLI
+
+```bash
+# CLI requires subcommand arguments
 cargo run -- search-sightings "hawk"
 cargo run -- add-trip "Morning hike" -l "Yosemite"
+
+# Or after install:
+fast-watcher search-sightings "hawk"
+fast-watcher add-trip "Morning hike" -l "Yosemite"
 ```
 
 ### Build and install system-wide
 
 ```bash
 cargo install --path .
-fast-watcher search-sightings "hawk"
+fast-watcher              # Launch GUI
+fast-watcher init-db      # Use CLI
 ```
 
 ### Uninstall
@@ -316,9 +361,10 @@ cargo test
 
 **Test coverage:**
 
-- **24 unit tests** in `src/core/` modules (taxon, trip, sighting, search)
+- **32 unit tests** in `src/core/` modules (taxon, trip, sighting, search)
 - **10 integration tests** in `tests/integration_test.rs`
 - All tests use in-memory SQLite databases (won't affect `fast_watcher.db`)
+- **42 total tests** - all passing ✅
 
 ### Test organization
 
@@ -329,7 +375,8 @@ cargo test
 
 ## 🟞️ Roadmap
 
-- **Phase 1** → core engine + SQLite search
-- **Phase 2** → rich indexing
-- **Phase 3** → native UI with Slint
-- **Phase 4** → portable export/import (Markdown + media)
+- **Phase 1** ✅ → Core engine + CLI + SQLite + comprehensive tests
+- **Phase 2** ✅ → Slint UI + hierarchical navigation + instant search
+- **Phase 3** 🚧 → FTS5 full-text search (blazing fast note search)
+- **Phase 4** → Enhanced UI (navigation stack, breadcrumb nav, pagination, advanced search)
+- **Phase 5** → Portable export/import (Markdown + media archives)
