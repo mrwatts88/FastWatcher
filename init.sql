@@ -6,7 +6,8 @@ PRAGMA foreign_keys = ON;
 -- ---------- taxa ----------
 CREATE TABLE IF NOT EXISTS taxa (
     id INTEGER PRIMARY KEY,
-    kingdom TEXT,
+    rank TEXT NOT NULL CHECK(rank IN ('kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species')),
+    kingdom TEXT NOT NULL,
     phylum TEXT,
     class TEXT,
     "order" TEXT,
@@ -37,8 +38,8 @@ CREATE TABLE IF NOT EXISTS trips (
 -- ---------- sightings ----------
 CREATE TABLE IF NOT EXISTS sightings (
     id INTEGER PRIMARY KEY,
-    trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
-    taxon_id INTEGER REFERENCES taxa(id),
+    trip_id INTEGER REFERENCES trips(id) ON DELETE CASCADE,
+    taxon_id INTEGER NOT NULL REFERENCES taxa(id),
     kingdom TEXT,
     phylum TEXT,
     class TEXT,
@@ -55,6 +56,8 @@ CREATE TABLE IF NOT EXISTS sightings (
 
 -- ---------- indexes ----------
 -- taxa hierarchy
+CREATE INDEX IF NOT EXISTS idx_taxa_rank ON taxa(rank);
+
 CREATE INDEX IF NOT EXISTS idx_taxa_kingdom ON taxa(kingdom);
 
 CREATE INDEX IF NOT EXISTS idx_taxa_phylum ON taxa(phylum);

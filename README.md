@@ -4,10 +4,9 @@
 
 **Fast Watcher** is an **offline-first, local archive app** for nature enthusiasts, field biologists, and hobbyist observers — think _bird-watching_, but for **any** organism.
 
-Each record you create lives as plain Markdown + media on your disk while being indexed in a blazing-fast SQLite full-text database for instant search.
+Data is stored in a **blazing-fast SQLite database** with denormalized fields optimized for instant search. Taxonomic data is duplicated into sightings to eliminate expensive JOINs during search operations.
 
-The philosophy: **your data lives in files you own.**
-The database is just an index; the app is replaceable.
+The philosophy: **your data lives locally, searches are instant.**
 
 ---
 
@@ -15,15 +14,17 @@ The database is just an index; the app is replaceable.
 
 | Entity       | Description                                                                     |
 | ------------ | ------------------------------------------------------------------------------- |
-| **Trip**     | A single outing (date, location, notes, folder).                                |
-| **Sighting** | A single observation of one species on a trip (notes, media).                   |
-| **Species**  | Canonical taxonomy record (species, genus, family) with parent/child hierarchy. |
+| **Trip**     | A single outing (date, location, notes). Optional for sightings.                |
+| **Sighting** | A single observation of a taxon, optionally linked to a trip (notes, media).    |
+| **Taxon**    | Canonical taxonomy record (kingdom → species_epithet) with common name.         |
 
 Relationship:
 
 ```
-Trip (1) ───< Sighting >─── (1) Species
+Trip (0..1) ───< Sighting >─── (1) Taxon
 ```
+
+**Note:** Sightings denormalize taxonomic fields from Taxa for blazing-fast search without JOINs.
 
 ---
 
@@ -32,39 +33,111 @@ Trip (1) ───< Sighting >─── (1) Species
 ```
 fast_watcher/
 ├── Cargo.toml
+├── init.sql             # Database schema
+├── seed_*.sql           # Seed data files
 └── src/
     ├── main.rs          # CLI entrypoint
     ├── cli/             # Argument parsing & command routing
     │   └── mod.rs
+    ├── models/          # Data models
+    │   ├── mod.rs
+    │   ├── sighting.rs
+    │   ├── taxon.rs
+    │   └── trip.rs
     └── core/            # Core logic
         ├── mod.rs
+        ├── db.rs        # Database connection & utilities
         ├── search.rs    # Search functions
-        ├── files.rs     # Indexing / filesystem
-        └── taxonomy.rs  # (future) species tree logic
+        ├── sighting.rs  # Sighting CRUD operations
+        ├── taxon.rs     # Taxon CRUD operations
+        └── trip.rs      # Trip CRUD operations
 ```
 
 ### 🮀 Tech Stack
 
-- **Language:** Rust
+- **Language:** Rust (edition 2021)
 - **CLI Framework:** [clap](https://docs.rs/clap/latest/clap/) (`derive` API)
-- **Error Handling:** [anyhow](https://docs.rs/anyhow)
-- **Database:** SQLite + FTS5 (planned)
+- **Error Handling:** [anyhow](https://docs.rs/anyhow) with `.context()` for detailed error messages
+- **Database:** [rusqlite](https://docs.rs/rusqlite) (SQLite with WAL mode + foreign keys)
+- **Search:** LIKE queries (FTS5 planned for future)
 - **UI (future):** [Slint](https://slint.dev/) for a native desktop layer
 
 ---
 
-## ⚙️ Current CLI Commands
+## ⚙️ CLI Commands
 
-```
-fast-watcher search <query>
-fast-watcher index
+### Database Management
+```bash
+fast-watcher init-db              # Initialize database and seed with sample data
+fast-watcher drop-db              # Drop all tables (use with caution!)
 ```
 
-### Example
-
+### Search Commands
+```bash
+fast-watcher search-sightings <query>   # Search for sightings
+fast-watcher search-trips <query>       # Search for trips
+fast-watcher search-taxa <query>        # Search for taxa
 ```
-$ fast-watcher search bluejay
-Results for bluejay
+
+### Trip Commands
+```bash
+fast-watcher add-trip <name> [OPTIONS]
+  -d, --date <DATE>           Optional date
+  -l, --location <LOCATION>   Optional location
+  -n, --notes <NOTES>         Optional notes
+
+fast-watcher show-trip <id>    # Show trip details
+fast-watcher delete-trip <id>  # Delete a trip
+```
+
+### Taxon Commands
+```bash
+fast-watcher add-taxon <kingdom> <phylum> <class> <order> <family> <genus> <species_epithet> <common_name>
+fast-watcher show-taxon <id>    # Show taxon details
+fast-watcher delete-taxon <id>  # Delete a taxon
+```
+
+### Sighting Commands
+```bash
+fast-watcher add-sighting <taxon_id> [OPTIONS]
+  -t, --trip-id <TRIP_ID>      Optional trip ID
+  -n, --notes <NOTES>          Optional notes
+  -m, --media-path <PATH>      Optional media path
+  -d, --date <DATE>            Optional date
+  -l, --location <LOCATION>    Optional location
+
+fast-watcher show-sighting <id>    # Show sighting details
+fast-watcher delete-sighting <id>  # Delete a sighting
+```
+
+### Examples
+
+```bash
+# Initialize database
+$ fast-watcher init-db
+
+# Search for blue jays
+$ fast-watcher search-sightings "blue jay"
+1: Animalia/Chordata/Aves/Passeriformes/Corvidae/Cyanocitta/cristata/Blue Jay
+
+# Add a new trip
+$ fast-watcher add-trip "Morning walk" -d "2025-01-15" -l "Central Park"
+Trip created with ID: 4
+
+# Add a taxon
+$ fast-watcher add-taxon Animalia Chordata Aves Passeriformes Corvidae Cyanocitta cristata "Blue Jay"
+Taxon created with ID: 10
+
+# Add a sighting linked to a trip
+$ fast-watcher add-sighting 10 --trip-id 4 --notes "Spotted near the pond"
+Sighting created with ID: 15
+
+# Add a sighting without a trip
+$ fast-watcher add-sighting 10 --notes "Backyard sighting"
+Sighting created with ID: 16
+
+# View sighting details
+$ fast-watcher show-sighting 15
 ```
 
 ---
@@ -73,13 +146,17 @@ Results for bluejay
 
 ### ✅ Phase 1 — CLI Engine (Current)
 
-- [x] Modular project structure (`core`, `cli`, `main`)
-- [x] `clap`-based argument parsing
-- [x] `anyhow` error handling with `bail!` and `?`
+- [x] Modular project structure (`core`, `cli`, `models`, `main`)
+- [x] `clap`-based argument parsing with subcommands
+- [x] `anyhow` error handling with `bail!`, `?`, and `.context()`
+- [x] SQLite database with WAL mode and foreign keys
+- [x] CRUD operations for Trips, Taxa, and Sightings
+- [x] Search functionality across all entities (LIKE queries)
+- [x] Denormalized taxonomic data in sightings for fast search
+- [x] Database initialization and seeding
 - [x] `cargo install --path .` for system-wide binary
-- [x] Debugging via VS Code + CodeLLDB
+- [ ] SQLite FTS5 full-text search (future optimization)
 - [ ] File system indexing (watcher)
-- [ ] SQLite + FTS integration
 
 ### 🚧 Phase 2 — Slint UI
 
@@ -93,9 +170,9 @@ Results for bluejay
 
 | Concept                     | Summary                                                                               | Example                                                      |
 | --------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **Modules (`mod` / `use`)** | `mod` declares a module; `use` brings items into scope.                               | `mod core; use core::search::run_search;`                    |
+| **Modules (`mod` / `use`)** | `mod` declares a module; `use` brings items into scope.                               | `mod core; use core::search::run_search_sightings;`          |
 | **Results & `?` operator**  | `Result<T, E>` encodes success/failure; `?` bubbles up errors.                        | `let contents = fs::read_to_string(p)?;`                     |
-| **`anyhow`**                | Universal error wrapper; `bail!()` for quick returns; `.context()` adds cause chains. | `bail!("empty query");`                                      |
+| **`anyhow`**                | Universal error wrapper; `bail!()` for quick returns; `.context()` adds cause chains. | `bail!("empty query");` / `.context("Failed to insert")?`   |
 | **Traits / Impl blocks**    | Behavior defined separately from data.                                                | `impl Dog { fn bark(&self){} }` / `impl Speak for Dog { … }` |
 | **`into()` / `from()`**     | Generic, type-inferred conversions.                                                   | `"hawk".into()` → `String` or `Vec<u8>`                      |
 | **Implicit returns**        | Last line without `;` is returned automatically.                                      | `Ok(format!("Results for {query}"))`                         |
@@ -106,22 +183,29 @@ Results for bluejay
 
 ## 🚀 Quick Start
 
+### Initialize database
+
+```bash
+cargo run -- init-db
+```
+
 ### Run locally
 
-```
-cargo run -- search "hawk"
+```bash
+cargo run -- search-sightings "hawk"
+cargo run -- add-trip "Morning hike" -l "Yosemite"
 ```
 
 ### Build and install system-wide
 
-```
+```bash
 cargo install --path .
-fast-watcher search "hawk"
+fast-watcher search-sightings "hawk"
 ```
 
 ### Uninstall
 
-```
+```bash
 cargo uninstall fast-watcher
 ```
 

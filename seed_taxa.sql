@@ -1,5 +1,7 @@
+-- Species-level taxa
 INSERT
     OR IGNORE INTO taxa (
+        rank,
         kingdom,
         phylum,
         class,
@@ -11,6 +13,7 @@ INSERT
     )
 VALUES
     (
+        'species',
         'Animalia',
         'Chordata',
         'Aves',
@@ -23,6 +26,7 @@ VALUES
 
 INSERT
     OR IGNORE INTO taxa (
+        rank,
         kingdom,
         phylum,
         class,
@@ -34,6 +38,7 @@ INSERT
     )
 VALUES
     (
+        'species',
         'Animalia',
         'Chordata',
         'Aves',
@@ -46,6 +51,7 @@ VALUES
 
 INSERT
     OR IGNORE INTO taxa (
+        rank,
         kingdom,
         phylum,
         class,
@@ -57,6 +63,7 @@ INSERT
     )
 VALUES
     (
+        'species',
         'Animalia',
         'Chordata',
         'Mammalia',
@@ -65,4 +72,30 @@ VALUES
         'Homo',
         'sapiens',
         'Human'
+    );
+
+-- Family-level taxon (example of partial identification)
+INSERT
+    OR IGNORE INTO taxa (
+        rank,
+        kingdom,
+        phylum,
+        class,
+        "order",
+        family,
+        genus,
+        species_epithet,
+        common_name
+    )
+VALUES
+    (
+        'family',
+        'Animalia',
+        'Chordata',
+        'Aves',
+        'Passeriformes',
+        'Corvidae',
+        NULL,
+        NULL,
+        'Crow Family'
     );

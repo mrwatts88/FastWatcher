@@ -19,3 +19,14 @@ pub fn execute_sql_file(conn: &Connection, path: &str) -> Result<()> {
     conn.execute_batch(&sql)?;
     Ok(())
 }
+
+/// Drop all tables in the database. Use with caution!
+pub fn drop_all_tables(conn: &Connection) -> Result<()> {
+    let sql = r#"
+        DROP TABLE IF EXISTS sightings;
+        DROP TABLE IF EXISTS trips;
+        DROP TABLE IF EXISTS taxa;
+    "#;
+    conn.execute_batch(sql)?;
+    Ok(())
+}
