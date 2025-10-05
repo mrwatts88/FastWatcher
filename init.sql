@@ -78,6 +78,8 @@ CREATE INDEX IF NOT EXISTS idx_trips_date ON trips(date);
 -- sightings hierarchy + relations
 CREATE INDEX IF NOT EXISTS idx_sightings_trip_id ON sightings(trip_id);
 
+CREATE INDEX IF NOT EXISTS idx_sightings_taxon_id ON sightings(taxon_id);
+
 CREATE INDEX IF NOT EXISTS idx_sightings_kingdom ON sightings(kingdom);
 
 CREATE INDEX IF NOT EXISTS idx_sightings_phylum ON sightings(phylum);
