@@ -147,6 +147,10 @@ mod tests {
         let schema = std::fs::read_to_string("init.sql").unwrap();
         conn.execute_batch(&schema).unwrap();
 
+        // Load test taxa (first 100 species + parent taxa)
+        let test_taxa = std::fs::read_to_string("seed_taxa_test.sql").unwrap();
+        conn.execute_batch(&test_taxa).unwrap();
+
         conn
     }
 
@@ -376,7 +380,6 @@ mod tests {
         // Create trips
         let trip1 = create_trip(&conn, "Trip 1", Some("2025-01-15"), None, None).unwrap();
         let trip2 = create_trip(&conn, "Trip 2", Some("2025-01-20"), None, None).unwrap();
-        let trip3 = create_trip(&conn, "Trip 3", Some("2025-01-25"), None, None).unwrap();
 
         // Create sightings: trip1 has subfamily sighting, trip2 has species sighting, trip3 has neither
         create_sighting(&conn, Some(trip1), subfamily_id, None, None, None, None).unwrap();

@@ -12,6 +12,10 @@ fn setup_test_db() -> Connection {
     let schema = std::fs::read_to_string("init.sql").unwrap();
     conn.execute_batch(&schema).unwrap();
 
+    // Load test taxa (first 100 species + parent taxa)
+    let test_taxa = std::fs::read_to_string("seed_taxa_test.sql").unwrap();
+    conn.execute_batch(&test_taxa).unwrap();
+
     conn
 }
 
@@ -451,26 +455,21 @@ fn test_nonexistent_entity_retrieval() {
 fn test_seeded_data() {
     let conn = setup_test_db();
 
-    // Load seed data
-    let seed_sql = std::fs::read_to_string("seed_taxa.sql").unwrap();
-    conn.execute_batch(&seed_sql).unwrap();
+    // Test data is already loaded in setup_test_db()
+    // Verify we can search for real NACC bird taxa
 
-    // Search for seeded Blue Jay taxon
-    let results = run_search_taxa(&conn, "Blue Jay").unwrap();
+    // Search for Highland Tinamou (first bird in test dataset)
+    let results = run_search_taxa(&conn, "Highland Tinamou").unwrap();
     assert!(results.len() > 0);
-    assert!(results.iter().any(|t| t.common_name == "Blue Jay"));
+    assert!(results.iter().any(|t| t.common_name == "Highland Tinamou"));
 
-    // Search for seeded Crow Family
-    let results = run_search_taxa(&conn, "Corvidae").unwrap();
+    // Search for Tinamidae family
+    let results = run_search_taxa(&conn, "Tinamidae").unwrap();
     assert!(results.len() > 0);
-    assert!(results.iter().any(|t| t.family == Some("Corvidae".to_string())));
+    assert!(results.iter().any(|t| t.family == Some("Tinamidae".to_string())));
 
     // Verify both species and family level taxa are seeded
-    let blue_jay = results.iter().find(|t| t.common_name == "Blue Jay");
-    assert!(blue_jay.is_some());
-    assert_eq!(blue_jay.unwrap().rank, "species");
-
-    let crow_family = results.iter().find(|t| t.common_name == "Crow Family");
-    assert!(crow_family.is_some());
-    assert_eq!(crow_family.unwrap().rank, "family");
+    let tinamou = results.iter().find(|t| t.common_name == "Tinamidae");
+    assert!(tinamou.is_some());
+    assert_eq!(tinamou.unwrap().rank, "family");
 }

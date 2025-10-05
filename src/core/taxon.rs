@@ -78,6 +78,10 @@ mod tests {
         let schema = std::fs::read_to_string("init.sql").unwrap();
         conn.execute_batch(&schema).unwrap();
 
+        // Load test taxa (first 100 species + parent taxa)
+        let test_taxa = std::fs::read_to_string("seed_taxa_test.sql").unwrap();
+        conn.execute_batch(&test_taxa).unwrap();
+
         conn
     }
 

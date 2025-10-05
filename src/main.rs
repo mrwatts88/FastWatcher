@@ -68,7 +68,7 @@ fn main() -> Result<()> {
         Commands::InitDb => {
             let conn: rusqlite::Connection = connect()?;
             execute_sql_file(&conn, "init.sql")?;
-            execute_sql_file(&conn, "seed_taxa.sql")?;
+            execute_sql_file(&conn, "seed_taxa_full.sql")?;
             execute_sql_file(&conn, "seed_trips.sql")?;
             execute_sql_file(&conn, "seed_sightings.sql")?;
             println!("Database initialized and seeded");

@@ -16,7 +16,7 @@ The philosophy: **your data lives locally, searches are instant.**
 | ------------ | ---------------------------------------------------------------------------- |
 | **Trip**     | A single outing (date, location, notes). Optional for sightings.             |
 | **Sighting** | A single observation of a taxon, optionally linked to a trip (notes, media). |
-| **Taxon**    | Canonical taxonomy record at any rank (kingdom → species) with common name.  |
+| **Taxon**    | Canonical taxonomy record at any rank (kingdom → subfamily → species) with common name.  |
 
 Relationship:
 
@@ -26,7 +26,7 @@ Trip (0..1) ───< Sighting >─── (1) Taxon
 
 **Note:** Sightings denormalize taxonomic fields from Taxa for blazing-fast search without JOINs.
 
-**Partial Taxonomy Support:** Taxa can be identified at any rank (e.g., family-level for "Corvidae" when species is unknown). All taxonomic fields except kingdom are optional.
+**Partial Taxonomy Support:** Taxa can be identified at any rank (e.g., family-level for "Corvidae" or subfamily-level for "Corvinae" when species is unknown). All taxonomic fields except kingdom are optional, including the subfamily rank.
 
 ---
 
@@ -110,6 +110,7 @@ fast-watcher add-taxon <rank> <kingdom> <common_name> [OPTIONS]
   --class <CLASS>                     Optional class
   --order <ORDER>                     Optional order
   --family <FAMILY>                   Optional family
+  --subfamily <SUBFAMILY>             Optional subfamily
   --genus <GENUS>                     Optional genus
   --species-epithet <SPECIES_EPITHET> Optional species epithet
 
@@ -163,6 +164,15 @@ $ fast-watcher add-taxon family Animalia "Crow Family" \
   --family Corvidae
 Taxon created with ID: 11
 
+# Add a subfamily-level taxon (between family and genus)
+$ fast-watcher add-taxon subfamily Animalia "Corvinae Subfamily" \
+  --phylum Chordata \
+  --class Aves \
+  --order Passeriformes \
+  --family Corvidae \
+  --subfamily Corvinae
+Taxon created with ID: 12
+
 # Add a sighting linked to a trip
 $ fast-watcher add-sighting 10 --trip-id 4 --notes "Spotted near the pond"
 Sighting created with ID: 15
@@ -190,7 +200,8 @@ $ fast-watcher show-sighting 15
 - [x] Denormalized taxonomic data in sightings for fast search
 - [x] Partial taxonomic identification (family/genus/species ranks)
 - [x] Database initialization and seeding
-- [x] Comprehensive test suite (42 tests: 32 unit + 10 integration)
+- [x] Comprehensive test suite (50 tests: 40 unit + 10 integration)
+- [x] Full subfamily rank support (optional taxonomic level between family and genus)
 - [x] `cargo install --path .` for system-wide binary
 
 ### ✅ Phase 2 — Slint UI (Completed)
@@ -220,7 +231,7 @@ Built a native desktop UI with [Slint](https://slint.dev/) featuring instant sea
 
 2. **Taxon Detail**
    - Entity type label, common name, rank badge
-   - Complete taxonomy breakdown (kingdom → species)
+   - Complete taxonomy breakdown (kingdom → phylum → class → order → family → subfamily → genus → species)
    - Related sightings list (includes all descendant taxa)
    - Related trips list (all trips where this taxon was seen)
 
@@ -361,15 +372,65 @@ cargo test
 
 **Test coverage:**
 
-- **32 unit tests** in `src/core/` modules (taxon, trip, sighting, search)
+- **40 unit tests** in `src/core/` modules (taxon, trip, sighting, search)
+  - Includes comprehensive subfamily support tests (hierarchical queries, search, mixed scenarios)
 - **10 integration tests** in `tests/integration_test.rs`
-- All tests use in-memory SQLite databases (won't affect `fast_watcher.db`)
-- **42 total tests** - all passing ✅
+- All tests use in-memory SQLite databases with **100 NACC bird species** (won't affect `fastwatcher.db`)
+- **50 total tests** - all passing ✅
 
 ### Test organization
 
 - **Unit tests** (`#[cfg(test)]` modules): Test individual CRUD and search functions
 - **Integration tests** (`tests/` directory): Test complete workflows and cross-entity operations
+
+---
+
+## 🦜 Taxonomic Data
+
+### NACC Bird Species Dataset
+
+Fast Watcher ships with real-world taxonomic data from the **North American Classification Committee (NACC)** bird species list:
+
+- **Production database:** 2,212 bird species + parent taxa (3,302 total taxa)
+- **Test database:** First 100 species subset (152 total taxa for fast test execution)
+
+### Seed Files
+
+| File                     | Purpose                              | Count                                                      |
+| ------------------------ | ------------------------------------ | ---------------------------------------------------------- |
+| `seed_taxa_full.sql`     | Production bird taxonomy             | 31 orders, 131 families, 88 subfamilies, 840 genera, 2,212 species |
+| `seed_taxa_test.sql`     | Test bird taxonomy (first 100)       | 3 orders, 5 families, 4 subfamilies, 40 genera, 100 species |
+| `seed_sightings.sql`     | Sample sightings using test birds    | 16 sightings (9 with trips, 7 casual)                      |
+| `seed_trips.sql`         | Sample field trips                   | 3 trips                                                    |
+
+### Data Source
+
+Bird taxonomy sourced from `NACC_list_species.csv` (official NACC species list).
+
+### Developer: Regenerating Seed Files
+
+**⚠️ Only needed if you modify the source CSV or generation logic.**
+
+The SQL seed files are generated from the NACC CSV using a Python script:
+
+```bash
+# Set up Python virtual environment (first time only)
+python3 -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+# .venv\Scripts\activate   # Windows
+pip install pandas
+
+# Generate all SQL seed files
+cd scripts
+python generate_bird_seeds.py
+```
+
+**Generated files:**
+- `seed_taxa_full.sql` - All 2,212 species for production
+- `seed_taxa_test.sql` - First 100 species for tests
+- `seed_sightings.sql` - Sample sightings using test birds
+
+**Note:** Regular users don't need Python. The generated SQL files are committed to the repository and loaded automatically during `init-db` and test execution.
 
 ---
 
